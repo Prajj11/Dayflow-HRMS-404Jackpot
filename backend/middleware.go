@@ -86,8 +86,24 @@ func parseToken(tokenStr string) (*claims, error) {
 	return c, nil
 }
 
-func setAuthCookie(w http.ResponseWriter, token string) {
+// cookieSecurityAttrs returns (Secure, SameSite) for the auth cookie. The
+// frontend (Vercel) and backend (Railway) are on different sites, so the
+// cookie must be SameSite=None to be sent on cross-site fetch() calls at
+// all — SameSite=Lax only rides along on same-site requests and top-level
+// navigations, not XHR/fetch, so every authenticated call after signin
+// would silently lose the cookie and look like a 401. SameSite=None
+// requires Secure, so local HTTP dev (COOKIE_SECURE=false) stays on Lax,
+// where frontend and backend are same-site (localhost) anyway.
+func cookieSecurityAttrs() (bool, http.SameSite) {
 	secure, _ := strconv.ParseBool(os.Getenv("COOKIE_SECURE"))
+	if secure {
+		return true, http.SameSiteNoneMode
+	}
+	return false, http.SameSiteLaxMode
+}
+
+func setAuthCookie(w http.ResponseWriter, token string) {
+	secure, sameSite := cookieSecurityAttrs()
 	http.SetCookie(w, &http.Cookie{
 		Name:     authCookieName,
 		Value:    token,
@@ -95,12 +111,12 @@ func setAuthCookie(w http.ResponseWriter, token string) {
 		MaxAge:   int(accessTokenTTL.Seconds()),
 		HttpOnly: true,
 		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: sameSite,
 	})
 }
 
 func clearAuthCookie(w http.ResponseWriter) {
-	secure, _ := strconv.ParseBool(os.Getenv("COOKIE_SECURE"))
+	secure, sameSite := cookieSecurityAttrs()
 	http.SetCookie(w, &http.Cookie{
 		Name:     authCookieName,
 		Value:    "",
@@ -108,7 +124,7 @@ func clearAuthCookie(w http.ResponseWriter) {
 		MaxAge:   -1,
 		HttpOnly: true,
 		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
+		SameSite: sameSite,
 	})
 }
 
