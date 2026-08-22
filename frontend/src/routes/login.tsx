@@ -18,12 +18,17 @@ function Login() {
     setLoading(true);
     setError(null);
     try {
-	  const res = await apiFetch<{ role: string }>("/auth/signin", {
+      const res = await apiFetch<{ role?: string; password_change_required?: boolean; email?: string }>("/auth/signin", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-	  setSession(res.role);
-      navigate({ to: "/" });
+      if (res.password_change_required) {
+        sessionStorage.setItem("dayflow_activate_email", res.email ?? email);
+        navigate({ to: "/activate" });
+        return;
+      }
+      setSession(res.role!);
+      navigate({ to: res.role === "admin" ? "/admin" : "/" });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Sign in failed");
     } finally {
