@@ -2,10 +2,13 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -35,24 +38,25 @@ type signupRequest struct {
 	EmployeeID string `json:"employee_id"`
 	Email      string `json:"email"`
 	Password   string `json:"password"`
-	Role       string `json:"role"`
 }
 
 func signupHandler(pool *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
 		var req signupRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
+		req.EmployeeID = strings.TrimSpace(req.EmployeeID)
+		req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 		if req.EmployeeID == "" || req.Email == "" || len(req.Password) < 8 {
 			writeError(w, http.StatusBadRequest, "employee_id, email, and a password of at least 8 characters are required")
 			return
 		}
-		if req.Role != "employee" && req.Role != "admin" {
-			req.Role = "employee"
-		}
-
 		hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "could not hash password")
@@ -64,13 +68,14 @@ func signupHandler(pool *pgxpool.Pool) http.HandlerFunc {
 			return
 		}
 		expiresAt := time.Now().Add(24 * time.Hour)
+		verifyTokenHash := sha256.Sum256([]byte(verifyToken))
 
 		var userID int
 		err = pool.QueryRow(r.Context(), `
 			INSERT INTO users (employee_id, email, password_hash, role, verification_token, verification_expires_at)
-			VALUES ($1, $2, $3, $4, $5, $6)
+			VALUES ($1, $2, $3, 'employee', $4, $5)
 			RETURNING id
-		`, req.EmployeeID, req.Email, string(hash), req.Role, verifyToken, expiresAt).Scan(&userID)
+		`, req.EmployeeID, req.Email, string(hash), hex.EncodeToString(verifyTokenHash[:]), expiresAt).Scan(&userID)
 		if err != nil {
 			writeError(w, http.StatusConflict, "employee_id or email already registered")
 			return
@@ -84,13 +89,17 @@ func signupHandler(pool *pgxpool.Pool) http.HandlerFunc {
 
 		// No SMTP provider configured yet — log the verification link instead
 		// of sending it. The token/endpoint are real; only delivery is stubbed.
-		log.Printf("verification link for %s: /auth/verify?token=%s", req.Email, verifyToken)
+		if os.Getenv("APP_ENV") == "production" {
+			log.Printf("email verification requested for user %d", userID)
+		} else {
+			log.Printf("development verification link for %s: /auth/verify?token=%s", req.Email, verifyToken)
+		}
 
 		writeJSON(w, http.StatusCreated, map[string]interface{}{
 			"id":          userID,
 			"employee_id": req.EmployeeID,
 			"email":       req.Email,
-			"role":        req.Role,
+			"role":        "employee",
 		})
 	}
 }
@@ -102,11 +111,12 @@ func verifyHandler(pool *pgxpool.Pool) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "missing token")
 			return
 		}
+		tokenHash := sha256.Sum256([]byte(token))
 		tag, err := pool.Exec(r.Context(), `
 			UPDATE users
 			SET email_verified = TRUE, verification_token = NULL
 			WHERE verification_token = $1 AND verification_expires_at > now()
-		`, token)
+		`, hex.EncodeToString(tokenHash[:]))
 		if err != nil || tag.RowsAffected() == 0 {
 			writeError(w, http.StatusBadRequest, "invalid or expired token")
 			return
@@ -122,6 +132,10 @@ type signinRequest struct {
 
 func signinHandler(pool *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
 		var req signinRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid request body")
@@ -129,10 +143,12 @@ func signinHandler(pool *pgxpool.Pool) http.HandlerFunc {
 		}
 
 		var userID int
+		req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 		var passwordHash, role string
+		var emailVerified bool
 		err := pool.QueryRow(r.Context(),
-			`SELECT id, password_hash, role FROM users WHERE email = $1`, req.Email,
-		).Scan(&userID, &passwordHash, &role)
+			`SELECT id, password_hash, role, email_verified FROM users WHERE lower(email) = $1`, req.Email,
+		).Scan(&userID, &passwordHash, &role, &emailVerified)
 		if err == pgx.ErrNoRows {
 			writeError(w, http.StatusUnauthorized, "invalid email or password")
 			return
@@ -145,12 +161,44 @@ func signinHandler(pool *pgxpool.Pool) http.HandlerFunc {
 			writeError(w, http.StatusUnauthorized, "invalid email or password")
 			return
 		}
+		if !emailVerified {
+			writeError(w, http.StatusForbidden, "verify your email before signing in")
+			return
+		}
 
 		token, err := issueToken(userID, role)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "could not issue token")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]string{"token": token, "role": role})
+		setAuthCookie(w, token)
+		writeJSON(w, http.StatusOK, map[string]string{"role": role})
 	}
+}
+
+func logoutHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		clearAuthCookie(w)
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func meHandler(pool *pgxpool.Pool) http.HandlerFunc {
+	return requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		var employeeID, email, role string
+		err := pool.QueryRow(r.Context(),
+			`SELECT employee_id, email, role FROM users WHERE id = $1`, userID(r),
+		).Scan(&employeeID, &email, &role)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "account unavailable")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"id": userID(r), "employee_id": employeeID, "email": email, "role": role,
+		})
+	})
 }

@@ -18,11 +18,11 @@ function Login() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch<{ token: string; role: string }>("/auth/signin", {
+	  const res = await apiFetch<{ role: string }>("/auth/signin", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      setSession(res.token, res.role);
+	  setSession(res.role);
       navigate({ to: "/" });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Sign in failed");
