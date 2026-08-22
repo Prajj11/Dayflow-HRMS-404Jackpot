@@ -51,7 +51,7 @@ func main() {
 	})
 
 	// HRMS: auth
-	mux.HandleFunc("/auth/signup", signupHandler(pool))
+	mux.HandleFunc("/auth/signup", signupHandler(pool, mailer))
 	mux.HandleFunc("/auth/signin", signinHandler(pool, mailer))
 	mux.HandleFunc("/auth/verify", verifyHandler(pool))
 	mux.HandleFunc("/auth/logout", logoutHandler())

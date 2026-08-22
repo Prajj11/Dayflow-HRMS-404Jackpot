@@ -4,12 +4,26 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"net/http"
 	"net/mail"
 	"net/smtp"
 	"os"
 	"strings"
 	"time"
 )
+
+// apiPublicURL returns the externally reachable base URL of this API,
+// preferring an explicit override since Railway's edge sits in front of it.
+func apiPublicURL(r *http.Request) string {
+	if base := os.Getenv("API_PUBLIC_URL"); base != "" {
+		return strings.TrimRight(base, "/")
+	}
+	scheme := "https"
+	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") == "" {
+		scheme = "http"
+	}
+	return scheme + "://" + r.Host
+}
 
 type SMTPMailer struct {
 	host, port, username, password, from string

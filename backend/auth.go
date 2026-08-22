@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -40,7 +39,7 @@ type signupRequest struct {
 	Password   string `json:"password"`
 }
 
-func signupHandler(pool *pgxpool.Pool) http.HandlerFunc {
+func signupHandler(pool *pgxpool.Pool, mailer *SMTPMailer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -87,12 +86,14 @@ func signupHandler(pool *pgxpool.Pool) http.HandlerFunc {
 			log.Printf("signup: create profile row: %v", err)
 		}
 
-		// No SMTP provider configured yet — log the verification link instead
-		// of sending it. The token/endpoint are real; only delivery is stubbed.
-		if os.Getenv("APP_ENV") == "production" {
-			log.Printf("email verification requested for user %d", userID)
+		verifyLink := apiPublicURL(r) + "/auth/verify?token=" + verifyToken
+		if mailer.Configured() {
+			body := "Welcome to Dayflow. Verify your email to activate your account:\n\n" + verifyLink + "\n\nThis link expires in 24 hours."
+			if err := mailer.Send(req.Email, "Verify your Dayflow account", body); err != nil {
+				log.Printf("signup: send verification email to %s: %v", req.Email, err)
+			}
 		} else {
-			log.Printf("development verification link for %s: /auth/verify?token=%s", req.Email, verifyToken)
+			log.Printf("development verification link for %s: %s", req.Email, verifyLink)
 		}
 
 		writeJSON(w, http.StatusCreated, map[string]interface{}{
