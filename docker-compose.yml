@@ -40,7 +40,10 @@ services:
       - backend
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8090
     ports:
       - "3090:3000"
     depends_on:
