@@ -6,11 +6,12 @@ import {
   Clock,
   IndianRupee,
   LogOut,
+  Shield,
   UserCircle,
   Users,
   XCircle,
 } from "lucide-react";
-import { apiFetch, clearSession, getToken } from "../lib/api";
+import { apiFetch, clearSession, getRole, getToken } from "../lib/api";
 
 export const Route = createFileRoute("/")({
   component: EmployeeDashboard,
@@ -88,12 +89,14 @@ function EmployeeDashboard() {
   const [week, setWeek] = useState<AttendanceRow[]>([]);
   const [recentLeave, setRecentLeave] = useState<LeaveRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!getToken()) {
       navigate({ to: "/login" });
       return;
     }
+    setIsAdmin(getRole() === "admin");
     Promise.all([
       apiFetch<{ attendance: AttendanceRow[] }>("/api/attendance/me?range=weekly"),
       apiFetch<{ leave_requests: LeaveRow[] }>("/api/leave/me"),
@@ -138,6 +141,18 @@ function EmployeeDashboard() {
 
         {/* Quick access */}
         <section className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {isAdmin && (
+            <a
+              href="/admin"
+              className="rounded-2xl border border-primary/40 bg-primary/5 p-5 shadow-sm transition-colors hover:border-primary/60 hover:bg-primary/10"
+            >
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Shield className="h-5 w-5" />
+              </div>
+              <h2 className="mt-3 text-sm font-semibold tracking-tight">Admin Panel</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Manage employees, attendance, payroll</p>
+            </a>
+          )}
           {quickAccess.map((card) => (
             <a
               key={card.title}

@@ -51,6 +51,7 @@ func main() {
 	mux.HandleFunc("/auth/verify", verifyHandler(pool))
 
 	// HRMS: profile
+	mux.HandleFunc("/api/employees", listEmployeesHandler(pool))
 	mux.HandleFunc("/api/profile/me", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPatch {
 			patchMyProfileHandler(pool)(w, r)
