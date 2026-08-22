@@ -94,6 +94,117 @@ func TestAuthCookieSecurityAttributes(t *testing.T) {
 	}
 }
 
+func TestInternalServiceTokenRequiresExactMatch(t *testing.T) {
+	t.Setenv("MCP_INTERNAL_TOKEN", "correct-horse-battery-staple")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/employees", nil)
+	req.Header.Set("X-Internal-Token", "correct-horse-battery-staple")
+	if !internalServiceToken(req) {
+		t.Fatal("expected matching internal token to be accepted")
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/employees", nil)
+	req.Header.Set("X-Internal-Token", "wrong-token")
+	if internalServiceToken(req) {
+		t.Fatal("expected mismatched internal token to be rejected")
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/api/employees", nil)
+	if internalServiceToken(req) {
+		t.Fatal("expected missing internal token header to be rejected")
+	}
+}
+
+func TestInternalServiceTokenDisabledWhenUnset(t *testing.T) {
+	t.Setenv("MCP_INTERNAL_TOKEN", "")
+	req := httptest.NewRequest(http.MethodGet, "/api/employees", nil)
+	req.Header.Set("X-Internal-Token", "")
+	if internalServiceToken(req) {
+		t.Fatal("an empty MCP_INTERNAL_TOKEN must never authenticate a request, even with an empty header")
+	}
+}
+
+func TestRequireAuthRejectsMissingToken(t *testing.T) {
+	t.Setenv("JWT_SECRET", testJWTSecret)
+	t.Setenv("MCP_INTERNAL_TOKEN", "")
+	called := false
+	handler := requireAuth(func(http.ResponseWriter, *http.Request) { called = true })
+	req := httptest.NewRequest(http.MethodGet, "/api/profile/me", nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("got status %d, want %d", w.Code, http.StatusUnauthorized)
+	}
+	if called {
+		t.Fatal("unauthenticated request reached protected handler")
+	}
+}
+
+func TestRequireAuthAcceptsInternalServiceToken(t *testing.T) {
+	t.Setenv("MCP_INTERNAL_TOKEN", "shared-secret")
+	var gotRole string
+	var gotUserID int
+	handler := requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		gotRole = userRole(r)
+		gotUserID = userID(r)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/employees", nil)
+	req.Header.Set("X-Internal-Token", "shared-secret")
+	w := httptest.NewRecorder()
+	handler(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("got status %d, want %d", w.Code, http.StatusOK)
+	}
+	if gotRole != "admin" {
+		t.Fatalf("internal service token should grant admin role, got %q", gotRole)
+	}
+	if gotUserID != 0 {
+		t.Fatalf("internal service token should carry the service user id 0, got %d", gotUserID)
+	}
+}
+
+func TestRequireAdminRejectsEmployeeRole(t *testing.T) {
+	t.Setenv("JWT_SECRET", testJWTSecret)
+	t.Setenv("MCP_INTERNAL_TOKEN", "")
+	token, err := issueToken(1, "employee")
+	if err != nil {
+		t.Fatal(err)
+	}
+	called := false
+	handler := requireAdmin(func(http.ResponseWriter, *http.Request) { called = true })
+	req := httptest.NewRequest(http.MethodGet, "/api/employees", nil)
+	req.AddCookie(&http.Cookie{Name: authCookieName, Value: token})
+	w := httptest.NewRecorder()
+	handler(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("got status %d, want %d", w.Code, http.StatusForbidden)
+	}
+	if called {
+		t.Fatal("employee-role request reached admin-only handler")
+	}
+}
+
+func TestRequireAdminAcceptsAdminRole(t *testing.T) {
+	t.Setenv("JWT_SECRET", testJWTSecret)
+	t.Setenv("MCP_INTERNAL_TOKEN", "")
+	token, err := issueToken(1, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	called := false
+	handler := requireAdmin(func(http.ResponseWriter, *http.Request) { called = true })
+	req := httptest.NewRequest(http.MethodGet, "/api/employees", nil)
+	req.AddCookie(&http.Cookie{Name: authCookieName, Value: token})
+	w := httptest.NewRecorder()
+	handler(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("got status %d, want %d", w.Code, http.StatusOK)
+	}
+	if !called {
+		t.Fatal("admin-role request should reach the handler")
+	}
+}
+
 func TestCORSRejectsCrossOriginStateChange(t *testing.T) {
 	t.Setenv("FRONTEND_ORIGIN", "https://dayflow.example")
 	called := false
