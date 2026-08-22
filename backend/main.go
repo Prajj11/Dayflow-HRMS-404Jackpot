@@ -29,6 +29,10 @@ func main() {
 	}
 	defer redisClient.Close()
 
+	if err := runMigrations(ctx, pool); err != nil {
+		log.Fatalf("migrations: %v", err)
+	}
+
 	askHandler, err := ask.NewHandler(pool, ask.NewGroqSelector(), "http://localhost:8080", "audit.jsonl")
 	if err != nil {
 		log.Fatalf("ask handler: %v", err)
@@ -39,6 +43,56 @@ func main() {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
+	})
+
+	// HRMS: auth
+	mux.HandleFunc("/auth/signup", signupHandler(pool))
+	mux.HandleFunc("/auth/signin", signinHandler(pool))
+	mux.HandleFunc("/auth/verify", verifyHandler(pool))
+
+	// HRMS: profile
+	mux.HandleFunc("/api/profile/me", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPatch {
+			patchMyProfileHandler(pool)(w, r)
+			return
+		}
+		getMyProfileHandler(pool)(w, r)
+	})
+	mux.HandleFunc("/api/profile/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPatch {
+			patchProfileByIDHandler(pool)(w, r)
+			return
+		}
+		getProfileByIDHandler(pool)(w, r)
+	})
+
+	// HRMS: attendance
+	mux.HandleFunc("/api/attendance/checkin", checkinHandler(pool))
+	mux.HandleFunc("/api/attendance/checkout", checkoutHandler(pool))
+	mux.HandleFunc("/api/attendance/me", getMyAttendanceHandler(pool))
+	mux.HandleFunc("/api/attendance/all", getAllAttendanceHandler(pool))
+	mux.HandleFunc("/api/attendance/", getAttendanceByIDHandler(pool))
+
+	// HRMS: leave
+	mux.HandleFunc("/api/leave/me", getMyLeaveHandler(pool))
+	mux.HandleFunc("/api/leave/all", getAllLeaveHandler(pool))
+	mux.HandleFunc("/api/leave", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			applyLeaveHandler(pool)(w, r)
+			return
+		}
+		writeError(w, http.StatusMethodNotAllowed, "use POST /api/leave")
+	})
+	mux.HandleFunc("/api/leave/", reviewLeaveHandler(pool))
+
+	// HRMS: payroll
+	mux.HandleFunc("/api/payroll/me", getMyPayrollHandler(pool))
+	mux.HandleFunc("/api/payroll/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPatch {
+			patchPayrollByIDHandler(pool)(w, r)
+			return
+		}
+		getPayrollByIDHandler(pool)(w, r)
 	})
 
 	mux.HandleFunc("/api/digest", func(w http.ResponseWriter, r *http.Request) {
@@ -439,8 +493,8 @@ func corsMiddleware(next http.Handler) http.Handler {
 			origin = "*"
 		}
 		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return

@@ -1,48 +1,49 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import {
   BadgeCheck,
-  Bell,
   CalendarCheck,
   Clock,
   IndianRupee,
   LogOut,
   UserCircle,
   Users,
+  XCircle,
 } from "lucide-react";
+import { apiFetch, clearSession, getToken } from "../lib/api";
 
 export const Route = createFileRoute("/")({
   component: EmployeeDashboard,
 });
 
-type AttendanceStatus = "present" | "absent" | "half-day" | "leave";
+type AttendanceStatus = "present" | "absent" | "half_day" | "leave";
 
 const statusStyles: Record<AttendanceStatus, string> = {
   present: "bg-[oklch(0.93_0.06_150)] text-[oklch(0.35_0.1_150)]",
   absent: "bg-[oklch(0.93_0.06_25)] text-[oklch(0.4_0.15_25)]",
-  "half-day": "bg-[oklch(0.93_0.08_70)] text-[oklch(0.4_0.12_70)]",
+  half_day: "bg-[oklch(0.93_0.08_70)] text-[oklch(0.4_0.12_70)]",
   leave: "bg-[oklch(0.92_0.05_280)] text-[oklch(0.4_0.1_280)]",
 };
 
 const statusLabels: Record<AttendanceStatus, string> = {
   present: "Present",
   absent: "Absent",
-  "half-day": "Half-day",
+  half_day: "Half-day",
   leave: "Leave",
 };
 
-interface WeekDay {
-  day: string;
+interface AttendanceRow {
+  date: string;
   status: AttendanceStatus;
 }
 
-// Placeholder attendance until the backend exposes /api/attendance.
-const week: WeekDay[] = [
-  { day: "Mon", status: "present" },
-  { day: "Tue", status: "present" },
-  { day: "Wed", status: "half-day" },
-  { day: "Thu", status: "present" },
-  { day: "Fri", status: "leave" },
-];
+interface LeaveRow {
+  id: number;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  status: "pending" | "approved" | "rejected";
+}
 
 interface QuickAccessCard {
   icon: React.ReactNode;
@@ -78,31 +79,38 @@ const quickAccess: QuickAccessCard[] = [
   },
 ];
 
-interface Alert {
-  icon: React.ReactNode;
-  text: string;
-  time: string;
+function weekday(dateStr: string) {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString(undefined, { weekday: "short" });
 }
 
-const alerts: Alert[] = [
-  {
-    icon: <BadgeCheck className="h-4 w-4 text-primary" />,
-    text: "Your leave request for Aug 25–26 was approved",
-    time: "2h ago",
-  },
-  {
-    icon: <IndianRupee className="h-4 w-4 text-primary" />,
-    text: "August payslip is now available",
-    time: "1d ago",
-  },
-  {
-    icon: <Bell className="h-4 w-4 text-primary" />,
-    text: "Reminder: submit your weekly timesheet",
-    time: "2d ago",
-  },
-];
-
 function EmployeeDashboard() {
+  const navigate = useNavigate();
+  const [week, setWeek] = useState<AttendanceRow[]>([]);
+  const [recentLeave, setRecentLeave] = useState<LeaveRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!getToken()) {
+      navigate({ to: "/login" });
+      return;
+    }
+    Promise.all([
+      apiFetch<{ attendance: AttendanceRow[] }>("/api/attendance/me?range=weekly"),
+      apiFetch<{ leave_requests: LeaveRow[] }>("/api/leave/me"),
+    ])
+      .then(([a, l]) => {
+        setWeek(a.attendance);
+        setRecentLeave(l.leave_requests.slice(0, 3));
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [navigate]);
+
+  function logout() {
+    clearSession();
+    navigate({ to: "/login" });
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-6xl px-6 py-10">
@@ -119,7 +127,10 @@ function EmployeeDashboard() {
               Every workday, perfectly aligned.
             </p>
           </div>
-          <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">
+          <button
+            onClick={logout}
+            className="flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
             <LogOut className="h-4 w-4 text-muted-foreground" />
             Logout
           </button>
@@ -157,23 +168,31 @@ function EmployeeDashboard() {
                 View all
               </a>
             </div>
-            <div className="grid grid-cols-5 gap-2">
-              {week.map((d) => (
-                <div
-                  key={d.day}
-                  className="flex flex-col items-center gap-2 rounded-xl border border-border bg-background px-2 py-4"
-                >
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {d.day}
-                  </span>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusStyles[d.status]}`}
+            {loading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+            ) : week.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No attendance yet — check in from the Attendance page.
+              </p>
+            ) : (
+              <div className="grid grid-cols-5 gap-2">
+                {week.slice(0, 5).reverse().map((d) => (
+                  <div
+                    key={d.date}
+                    className="flex flex-col items-center gap-2 rounded-xl border border-border bg-background px-2 py-4"
                   >
-                    {statusLabels[d.status]}
-                  </span>
-                </div>
-              ))}
-            </div>
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {weekday(d.date)}
+                    </span>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusStyles[d.status]}`}
+                    >
+                      {statusLabels[d.status]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
 
           {/* Recent activity */}
@@ -181,19 +200,32 @@ function EmployeeDashboard() {
             <h2 className="mb-4 text-sm font-semibold tracking-tight">
               Recent activity
             </h2>
-            <ul className="space-y-4">
-              {alerts.map((a, i) => (
-                <li key={i} className="flex gap-3">
-                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                    {a.icon}
-                  </div>
-                  <div>
-                    <p className="text-sm leading-snug text-foreground">{a.text}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{a.time}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {loading ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : recentLeave.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No recent activity.</p>
+            ) : (
+              <ul className="space-y-4">
+                {recentLeave.map((l) => (
+                  <li key={l.id} className="flex gap-3">
+                    <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                      {l.status === "approved" ? (
+                        <BadgeCheck className="h-4 w-4 text-primary" />
+                      ) : l.status === "rejected" ? (
+                        <XCircle className="h-4 w-4 text-primary" />
+                      ) : (
+                        <CalendarCheck className="h-4 w-4 text-primary" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm leading-snug text-foreground capitalize">
+                        {l.leave_type} leave ({l.start_date} – {l.end_date}) is {l.status}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         </div>
       </div>
