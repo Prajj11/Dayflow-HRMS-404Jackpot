@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -117,11 +118,13 @@ func getAttendanceByIDHandler(pool *pgxpool.Pool) http.HandlerFunc {
 }
 
 type allAttendanceRow struct {
-	UserID     int    `json:"user_id"`
-	EmployeeID string `json:"employee_id"`
-	FullName   string `json:"full_name"`
-	Date       string `json:"date"`
-	Status     string `json:"status"`
+	UserID     int     `json:"user_id"`
+	EmployeeID string  `json:"employee_id"`
+	FullName   string  `json:"full_name"`
+	Date       string  `json:"date"`
+	Status     string  `json:"status"`
+	CheckIn    *string `json:"check_in"`
+	CheckOut   *string `json:"check_out"`
 }
 
 func getAllAttendanceHandler(pool *pgxpool.Pool) http.HandlerFunc {
@@ -131,7 +134,7 @@ func getAllAttendanceHandler(pool *pgxpool.Pool) http.HandlerFunc {
 			date = time.Now().Format("2006-01-02")
 		}
 		rows, err := pool.Query(r.Context(), `
-			SELECT u.id, u.employee_id, ep.full_name, a.date, a.status
+			SELECT u.id, u.employee_id, ep.full_name, a.date, a.status, a.check_in, a.check_out
 			FROM attendance a
 			JOIN users u ON u.id = a.user_id
 			JOIN employee_profiles ep ON ep.user_id = u.id
@@ -148,13 +151,74 @@ func getAllAttendanceHandler(pool *pgxpool.Pool) http.HandlerFunc {
 		for rows.Next() {
 			var a allAttendanceRow
 			var d time.Time
-			if err := rows.Scan(&a.UserID, &a.EmployeeID, &a.FullName, &d, &a.Status); err != nil {
+			var checkIn, checkOut *time.Time
+			if err := rows.Scan(&a.UserID, &a.EmployeeID, &a.FullName, &d, &a.Status, &checkIn, &checkOut); err != nil {
 				writeError(w, http.StatusInternalServerError, "could not scan attendance")
 				return
 			}
 			a.Date = d.Format("2006-01-02")
+			if checkIn != nil {
+				s := checkIn.Format(time.RFC3339)
+				a.CheckIn = &s
+			}
+			if checkOut != nil {
+				s := checkOut.Format(time.RFC3339)
+				a.CheckOut = &s
+			}
 			out = append(out, a)
 		}
 		writeJSON(w, http.StatusOK, map[string]interface{}{"attendance": out, "date": date})
+	})
+}
+
+type attendanceOverrideRequest struct {
+	UserID   int    `json:"user_id"`
+	Date     string `json:"date"`
+	Status   string `json:"status"`
+	CheckIn  string `json:"check_in,omitempty"`
+	CheckOut string `json:"check_out,omitempty"`
+}
+
+// overrideAttendanceHandler lets an admin manually correct an attendance
+// record — e.g. a forgotten check-out or a misclassified status.
+func overrideAttendanceHandler(pool *pgxpool.Pool) http.HandlerFunc {
+	return requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		var req attendanceOverrideRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+		switch req.Status {
+		case "present", "absent", "half_day", "leave":
+		default:
+			writeError(w, http.StatusBadRequest, "status must be present, absent, half_day, or leave")
+			return
+		}
+		if req.UserID == 0 || req.Date == "" {
+			writeError(w, http.StatusBadRequest, "user_id and date are required")
+			return
+		}
+
+		var checkIn, checkOut interface{}
+		if req.CheckIn != "" {
+			checkIn = req.Date + "T" + req.CheckIn + ":00"
+		}
+		if req.CheckOut != "" {
+			checkOut = req.Date + "T" + req.CheckOut + ":00"
+		}
+
+		_, err := pool.Exec(r.Context(), `
+			INSERT INTO attendance (user_id, date, status, check_in, check_out)
+			VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (user_id, date) DO UPDATE SET
+				status = $3,
+				check_in = COALESCE($4, attendance.check_in),
+				check_out = COALESCE($5, attendance.check_out)
+		`, req.UserID, req.Date, req.Status, checkIn, checkOut)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "could not override attendance")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
 	})
 }
