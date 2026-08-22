@@ -336,6 +336,8 @@ function AdminDashboardPage() {
 
   const pendingLeavesCount = leaveRequests.filter((r) => r.status === "Pending").length;
   const presentToday = todaysAttendance.filter((r) => r.status === "Present").length;
+  const thisMonthKey = new Date().toISOString().slice(0, 7);
+  const newThisMonthCount = employees.filter((e) => e.joinDate?.startsWith(thisMonthKey)).length;
   const grandTotalPayroll = employees.reduce(
     (sum, emp) => sum + (emp.baseSalary + emp.hra + emp.bonus - emp.deductions),
     0
@@ -359,8 +361,9 @@ function AdminDashboardPage() {
                 <ShieldAlert className="h-4 w-4 text-primary" />
                 HR Management Workspace
               </div>
-              <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">
+              <h1 className="mt-1 flex flex-wrap items-baseline gap-x-3 text-3xl font-extrabold tracking-tight text-foreground">
                 HR Admin & Operations Hub
+                <span className="font-display text-2xl font-normal text-primary">— Every workday, aligned.</span>
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
                 Centralized workforce management, leave approvals, attendance matrix, and payroll controls.
@@ -382,6 +385,7 @@ function AdminDashboardPage() {
             presentToday={presentToday}
             pendingLeavesCount={pendingLeavesCount}
             monthlyPayrollTotal={grandTotalPayroll}
+            newThisMonthCount={newThisMonthCount}
             onSelectTab={(tab) => setAdminTab(tab as any)}
           />
 

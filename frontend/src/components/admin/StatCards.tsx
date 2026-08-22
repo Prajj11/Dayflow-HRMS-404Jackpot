@@ -13,6 +13,7 @@ interface StatCardsProps {
   presentToday: number;
   pendingLeavesCount: number;
   monthlyPayrollTotal: number;
+  newThisMonthCount?: number;
   onSelectTab?: (tab: "overview" | "employees" | "attendance" | "leaves" | "payroll") => void;
 }
 
@@ -22,6 +23,7 @@ export const StatCards: React.FC<StatCardsProps> = ({
   presentToday,
   pendingLeavesCount,
   monthlyPayrollTotal,
+  newThisMonthCount = 0,
   onSelectTab,
 }) => {
   const attendanceRate = totalEmployees > 0 ? Math.round((presentToday / totalEmployees) * 100) : 0;
@@ -44,6 +46,11 @@ export const StatCards: React.FC<StatCardsProps> = ({
           <span className="text-3xl font-extrabold tracking-tight text-foreground">
             {totalEmployees}
           </span>
+          {newThisMonthCount > 0 && (
+            <span className="flex items-center gap-0.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600">
+              ↗ +{newThisMonthCount} this mo
+            </span>
+          )}
         </div>
         <div className="mt-2 text-xs text-muted-foreground flex items-center justify-between">
           <span>{activeCount} Active</span>
