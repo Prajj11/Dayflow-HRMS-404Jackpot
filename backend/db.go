@@ -8,5 +8,5 @@ import (
 )
 
 func initPool(ctx context.Context) (*pgxpool.Pool, error) {
-	return pgxpool.New(ctx, os.Getenv("SUPABASE_DB_URL"))
+	return pgxpool.New(ctx, os.Getenv("DATABASE_URL"))
 }
