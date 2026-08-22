@@ -236,7 +236,7 @@ function AdminDashboardPage() {
     if (view === "employee") navigate({ to: "/" });
   };
 
-  async function handleSaveEmployee(empData: EmployeeData, password: string) {
+  async function handleSaveEmployee(empData: EmployeeData) {
     if (empData.userId) {
       await apiFetch(`/api/profile/${empData.userId}`, {
         method: "PATCH",
@@ -257,17 +257,22 @@ function AdminDashboardPage() {
         }),
       });
     } else {
-      await apiFetch("/api/employees", {
+      // The new employee gets an emailed temporary password — the backend
+      // refuses this call entirely if no SMTP provider is configured.
+      const created = await apiFetch<{ id: number }>("/api/employees", {
         method: "POST",
         body: JSON.stringify({
           employee_id: empData.id,
           email: empData.email,
-          password,
-          role: empData.role.toLowerCase(),
           full_name: empData.name,
           job_title: empData.designation,
           department: empData.department,
           phone: empData.phone,
+        }),
+      });
+      await apiFetch(`/api/payroll/${created.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
           basic: empData.baseSalary,
           hra: empData.hra,
           allowances: empData.bonus,

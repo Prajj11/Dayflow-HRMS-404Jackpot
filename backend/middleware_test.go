@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -179,10 +181,45 @@ func TestRequireAuthAcceptsInternalServiceToken(t *testing.T) {
 	}
 }
 
+// fakeSessionStore satisfies SessionStore for tests that need requireAuth's
+// session-lookup to succeed without a real Redis instance.
+type fakeSessionStore struct {
+	sessions map[string]*Session
+}
+
+func newFakeSessionStore() *fakeSessionStore {
+	return &fakeSessionStore{sessions: map[string]*Session{}}
+}
+
+func (f *fakeSessionStore) put(id string, userID int, role string) {
+	f.sessions[id] = &Session{ID: id, UserID: userID, Role: role, ExpiresAt: time.Now().Add(time.Hour)}
+}
+
+func (f *fakeSessionStore) Create(context.Context, int, string, string) (*Session, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+func (f *fakeSessionStore) Authenticate(_ context.Context, sessionID string) (*Session, error) {
+	s, ok := f.sessions[sessionID]
+	if !ok {
+		return nil, fmt.Errorf("not found")
+	}
+	return s, nil
+}
+func (f *fakeSessionStore) Revoke(context.Context, string) error       { return nil }
+func (f *fakeSessionStore) RevokeAll(context.Context, int) error       { return nil }
+func (f *fakeSessionStore) List(context.Context, int, string) ([]SessionView, error) {
+	return nil, nil
+}
+
 func TestRequireAdminRejectsEmployeeRole(t *testing.T) {
 	t.Setenv("JWT_SECRET", testJWTSecret)
 	t.Setenv("MCP_INTERNAL_TOKEN", "")
-	token, err := issueToken(1, "employee")
+	store := newFakeSessionStore()
+	store.put("sess-employee", 1, "employee")
+	sessions = store
+	defer func() { sessions = nil }()
+
+	token, err := issueToken(1, "employee", "sess-employee")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +240,12 @@ func TestRequireAdminRejectsEmployeeRole(t *testing.T) {
 func TestRequireAdminAcceptsAdminRole(t *testing.T) {
 	t.Setenv("JWT_SECRET", testJWTSecret)
 	t.Setenv("MCP_INTERNAL_TOKEN", "")
-	token, err := issueToken(1, "admin")
+	store := newFakeSessionStore()
+	store.put("sess-admin", 1, "admin")
+	sessions = store
+	defer func() { sessions = nil }()
+
+	token, err := issueToken(1, "admin", "sess-admin")
 	if err != nil {
 		t.Fatal(err)
 	}

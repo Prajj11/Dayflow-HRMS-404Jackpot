@@ -7,6 +7,7 @@ import {
   IndianRupee,
   LogOut,
   Shield,
+  ShieldCheck,
   UserCircle,
   Users,
   XCircle,
@@ -129,13 +130,24 @@ function EmployeeDashboard() {
               Every workday, perfectly aligned.
             </p>
           </div>
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            <LogOut className="h-4 w-4 text-muted-foreground" />
-            Logout
-          </button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <a
+                href="/admin"
+                className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3.5 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                HR Admin Hub
+              </a>
+            )}
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            >
+              <LogOut className="h-4 w-4 text-muted-foreground" />
+              Logout
+            </button>
+          </div>
         </header>
 
         {/* Quick access */}

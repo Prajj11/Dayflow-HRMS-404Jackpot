@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, Save, UserPlus, Mail, Phone, IndianRupee } from "lucide-react";
+import { ApiError } from "../../lib/api";
 
 export interface EmployeeData {
   id: string;
@@ -22,7 +23,7 @@ export interface EmployeeData {
 interface AddEditEmployeeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (employee: EmployeeData, password: string) => void;
+  onSave: (employee: EmployeeData) => Promise<void>;
   initialData?: EmployeeData | null;
 }
 
@@ -49,7 +50,6 @@ export const AddEditEmployeeModal: React.FC<AddEditEmployeeModalProps> = ({
     deductions: 4000,
     address: "",
   });
-  const [password, setPassword] = useState("");
 
   useEffect(() => {
     if (initialData) {
@@ -73,18 +73,27 @@ export const AddEditEmployeeModal: React.FC<AddEditEmployeeModalProps> = ({
         address: "",
       });
     }
-    setPassword("");
   }, [initialData, isOpen]);
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!formData.name || !formData.email) return;
-    if (!initialData && password.length < 8) return;
-    onSave(formData, password);
-    onClose();
-  };
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave(formData);
+      onClose();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Could not save this employee. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
@@ -121,23 +130,6 @@ export const AddEditEmployeeModal: React.FC<AddEditEmployeeModalProps> = ({
                 className="mt-1 w-full rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground font-mono disabled:opacity-70"
               />
             </div>
-
-            {!initialData && (
-              <div>
-                <label className="text-xs font-semibold text-foreground uppercase">
-                  Initial Password *
-                </label>
-                <input
-                  type="password"
-                  required
-                  minLength={8}
-                  placeholder="At least 8 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
-                />
-              </div>
-            )}
 
             <div>
               <label className="text-xs font-semibold text-foreground uppercase">
@@ -206,20 +198,6 @@ export const AddEditEmployeeModal: React.FC<AddEditEmployeeModalProps> = ({
 
             <div>
               <label className="text-xs font-semibold text-foreground uppercase">
-                Access Role
-              </label>
-              <select
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
-              >
-                <option value="Employee">Employee</option>
-                <option value="Admin">Admin</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-foreground uppercase">
                 Job Title
               </label>
               <input
@@ -231,6 +209,12 @@ export const AddEditEmployeeModal: React.FC<AddEditEmployeeModalProps> = ({
               />
             </div>
           </div>
+
+          {!initialData && (
+            <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">
+              An invitation email with a temporary password will be sent to this address. The employee sets their own permanent password on first login.
+            </p>
+          )}
 
           <div className="mt-4 rounded-xl border border-border bg-muted/20 p-4">
             <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
@@ -277,6 +261,12 @@ export const AddEditEmployeeModal: React.FC<AddEditEmployeeModalProps> = ({
             </div>
           </div>
 
+          {error && (
+            <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {error}
+            </p>
+          )}
+
           <div className="mt-6 flex items-center justify-end gap-3 border-t border-border pt-4">
             <button
               type="button"
@@ -287,10 +277,11 @@ export const AddEditEmployeeModal: React.FC<AddEditEmployeeModalProps> = ({
             </button>
             <button
               type="submit"
-              className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-md transition-colors hover:bg-primary/90"
+              disabled={saving}
+              className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-md transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               <Save className="h-4 w-4" />
-              {initialData ? "Update Employee" : "Save & Onboard"}
+              {saving ? "Saving…" : initialData ? "Update Employee" : "Save & Onboard"}
             </button>
           </div>
         </form>
