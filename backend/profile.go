@@ -39,6 +39,43 @@ func fetchProfile(pool *pgxpool.Pool, r *http.Request, targetUserID int) (*profi
 	return p, nil
 }
 
+type employeeListRow struct {
+	UserID     int    `json:"user_id"`
+	EmployeeID string `json:"employee_id"`
+	Email      string `json:"email"`
+	Role       string `json:"role"`
+	FullName   string `json:"full_name"`
+	JobTitle   string `json:"job_title"`
+	Department string `json:"department"`
+}
+
+func listEmployeesHandler(pool *pgxpool.Pool) http.HandlerFunc {
+	return requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		rows, err := pool.Query(r.Context(), `
+			SELECT u.id, u.employee_id, u.email, u.role, ep.full_name, ep.job_title, ep.department
+			FROM users u
+			JOIN employee_profiles ep ON ep.user_id = u.id
+			ORDER BY ep.full_name, u.employee_id
+		`)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "could not load employees")
+			return
+		}
+		defer rows.Close()
+
+		out := []employeeListRow{}
+		for rows.Next() {
+			var e employeeListRow
+			if err := rows.Scan(&e.UserID, &e.EmployeeID, &e.Email, &e.Role, &e.FullName, &e.JobTitle, &e.Department); err != nil {
+				writeError(w, http.StatusInternalServerError, "could not scan employees")
+				return
+			}
+			out = append(out, e)
+		}
+		writeJSON(w, http.StatusOK, map[string]interface{}{"employees": out})
+	})
+}
+
 func getMyProfileHandler(pool *pgxpool.Pool) http.HandlerFunc {
 	return requireAuth(func(w http.ResponseWriter, r *http.Request) {
 		p, err := fetchProfile(pool, r, userID(r))
