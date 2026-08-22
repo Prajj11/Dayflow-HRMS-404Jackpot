@@ -28,19 +28,66 @@
 
 @layer base {
   html, body {
-    font-family: var(--font-sans);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
     background-color: #F8FAFC;
     color: #0F172A;
-    line-height: 1.6;
   }
 
   .dark body {
     background-color: #090D16;
     color: #F8FAFC;
   }
+
+  /* DISPLAY / H1: Caveat 700 */
+  h1, .font-display, .display-h1 {
+    font-family: 'Caveat', cursive;
+    font-weight: 700;
+  }
+
+  /* HEADING / H2: Inter 700, 24px */
+  h2, .heading-h2 {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-weight: 700;
+    font-size: 24px;
+    line-height: 1.3;
+  }
+
+  /* HEADING / H3: Inter 600, 18px */
+  h3, .heading-h3 {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    line-height: 1.4;
+  }
+
+  /* BODY: Inter 400, 15px / 1.6 */
+  p, .body-text {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-weight: 400;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* LABEL / UI: INTER 600, 12PX, UPPERCASE, +0.06EM */
+  label, th, .label-ui {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* MONO / DATA: Space Mono 400, 13px */
+  code, pre, .font-mono, .mono-data {
+    font-family: 'Space Mono', monospace;
+    font-weight: 400;
+    font-size: 13px;
+  }
 }
 
-/* Typography Specific Classes */
+/* Typography Specific Utility Classes */
 .font-display {
   font-family: 'Caveat', cursive;
   font-weight: 700;
@@ -52,6 +99,14 @@
 
 .font-mono {
   font-family: 'Space Mono', monospace;
+}
+
+.label-ui {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 /* Glassmorphism & Custom Card Utilities */
