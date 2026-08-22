@@ -1,16 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router';
 import React, { useState } from 'react';
 import { HRMSProvider, useHRMS } from '../context/HRMSContext';
-import { Navbar } from '../components/layout/Navbar';
-import { Sidebar } from '../components/layout/Sidebar';
 import { EmployeeDashboard } from '../components/Dashboard/EmployeeDashboard';
-import { AdminDashboard } from '../components/Dashboard/AdminDashboard';
 import { ProfileView } from '../components/Profile/ProfileView';
 import { AttendanceModule } from '../components/Attendance/AttendanceModule';
 import { LeaveModule } from '../components/Leave/LeaveModule';
 import { PayrollModule } from '../components/Payroll/PayrollModule';
-import { AnalyticsModule } from '../components/Analytics/AnalyticsModule';
 import { AuthModal } from '../components/Auth/AuthModal';
+import { ArrowLeft } from 'lucide-react';
 
 export const Route = createFileRoute('/')({
   component: DayflowAppWrapper,
@@ -19,19 +16,26 @@ export const Route = createFileRoute('/')({
 function DayflowAppWrapper() {
   return (
     <HRMSProvider>
-      <MainHRMSApp />
+      <MainEmployeeApp />
     </HRMSProvider>
   );
 }
 
-function MainHRMSApp() {
-  const { activeTab, activeRole } = useHRMS();
+function MainEmployeeApp() {
+  const { activeTab, setActiveTab } = useHRMS();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+
+  if (activeTab === 'dashboard') {
+    return (
+      <>
+        <EmployeeDashboard onLogout={() => setIsAuthOpen(true)} />
+        <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+      </>
+    );
+  }
 
   const renderActiveModule = () => {
     switch (activeTab) {
-      case 'dashboard':
-        return activeRole === 'hr' ? <AdminDashboard /> : <EmployeeDashboard />;
       case 'profiles':
         return <ProfileView />;
       case 'attendance':
@@ -40,37 +44,34 @@ function MainHRMSApp() {
         return <LeaveModule />;
       case 'payroll':
         return <PayrollModule />;
-      case 'analytics':
-        return <AnalyticsModule />;
       default:
-        return activeRole === 'hr' ? <AdminDashboard /> : <EmployeeDashboard />;
+        return <EmployeeDashboard onLogout={() => setIsAuthOpen(true)} />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans dark:bg-slate-950 dark:text-slate-100 flex flex-col">
-      {/* Top Navbar */}
-      <Navbar onOpenAuth={() => setIsAuthOpen(true)} />
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans dark:bg-[#090D16] dark:text-slate-100 flex flex-col">
+      {/* Sub-Page Top Header Bar */}
+      <header className="border-b border-slate-200/80 bg-white/80 backdrop-blur-md px-6 py-4 dark:border-slate-800 dark:bg-slate-900/80">
+        <div className="mx-auto flex max-w-5xl items-center justify-between">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-200"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </button>
+          <div className="text-xs font-extrabold uppercase tracking-wider text-[#714B67] dark:text-[#8E587E]">
+            Dayflow Employee Portal
+          </div>
+        </div>
+      </header>
 
-      {/* Main Body with Sidebar + Content Area */}
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col md:flex-row">
-        {/* Navigation Sidebar */}
-        <Sidebar />
+      {/* Module Content */}
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
+        {renderActiveModule()}
+      </main>
 
-        {/* Dynamic Workspace Panel */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-          {renderActiveModule()}
-        </main>
-      </div>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-4 px-6 text-center text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-        <p>
-          Dayflow HRMS • Odoo x NMIT Hackathon Edition • Built with React.js & Tailwind CSS
-        </p>
-      </footer>
-
-      {/* Auth Modal */}
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </div>
   );

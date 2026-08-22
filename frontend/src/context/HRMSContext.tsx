@@ -23,7 +23,7 @@ const HRMSContext = createContext<HRMSContextType | undefined>(undefined);
 
 export const HRMSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeRole, setActiveRole] = useState<UserRole>('hr');
+  const [activeRole, setActiveRole] = useState<UserRole>('employee');
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -39,10 +39,17 @@ export const HRMSProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshData = () => {
     const user = HRMSStorage.getCurrentUser();
-    setCurrentUser(user);
-    if (user) {
-      setActiveRole(user.role);
-    }
+    setCurrentUser(user || {
+      id: 'usr-1002',
+      employeeId: 'DF-1002',
+      name: 'Alex Rivera',
+      email: 'alex.rivera@dayflow.com',
+      role: 'employee',
+      department: 'Engineering',
+      position: 'Senior Frontend Engineer',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+    });
+    setActiveRole('employee');
     setEmployees(HRMSStorage.getEmployees());
     setAttendance(HRMSStorage.getAttendanceRecords());
     setLeaves(HRMSStorage.getLeaveRequests());
@@ -55,18 +62,15 @@ export const HRMSProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const handleSwitchRole = (role: UserRole) => {
-    const user = HRMSStorage.switchRole(role);
-    setCurrentUser(user);
-    setActiveRole(role);
+    setActiveRole('employee');
     refreshData();
-    showToast(`Switched view to ${role.toUpperCase()} mode!`, 'info');
   };
 
   return (
     <HRMSContext.Provider
       value={{
         currentUser,
-        activeRole,
+        activeRole: 'employee',
         activeTab,
         setActiveTab,
         switchRole: handleSwitchRole,
