@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useHRMS } from '../../context/HRMSContext';
 import { HRMSStorage } from '../../services/hrmsStorage';
-import { ProfileView } from '../Profile/ProfileView';
 import { AttendanceModule } from '../Attendance/AttendanceModule';
 import { LeaveModule } from '../Leave/LeaveModule';
 import { PayrollModule } from '../Payroll/PayrollModule';
@@ -29,33 +28,61 @@ import {
   Calendar,
   FileText,
   Plus,
-  Bell
+  Bell,
+  ChevronDown,
+  Edit,
+  Save,
+  Phone,
+  MapPin
 } from 'lucide-react';
 
 export const EmployeeDashboard: React.FC = () => {
   const { currentUser, employees, selectedEmployeeId, leaves, attendance, showToast, refreshData } = useHRMS();
   const [activeRoleView, setActiveRoleView] = useState<'hr' | 'employee'>('employee');
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'profile' | 'attendance' | 'leaves' | 'payroll'>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'attendance' | 'leaves' | 'payroll'>('overview');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [isEditingContact, setIsEditingContact] = useState(false);
 
   // Match active user profile or default
-  const activeEmployeeId = currentUser?.employeeId || selectedEmployeeId || 'DF-1002';
+  const activeEmployeeId = currentUser?.employeeId || selectedEmployeeId || 'DF-8620';
   const employeeProfile = employees.find(e => e.employeeId === activeEmployeeId || e.id === activeEmployeeId) || {
-    employeeId: 'DF-1002',
-    name: currentUser?.name || 'Alex Rivera',
-    position: currentUser?.position || 'Senior Frontend Engineer',
-    department: currentUser?.department || 'Engineering'
+    id: 'usr-8620',
+    employeeId: 'DF-8620',
+    name: currentUser?.name || 'Marryjane',
+    position: currentUser?.position || 'Software Engineer',
+    department: currentUser?.department || 'Engineering',
+    email: currentUser?.email || 'marryjane@dayflow.com',
+    phone: '+1 (555) 123-4567',
+    address: 'San Francisco, CA',
+    joiningDate: '2026-08-22',
+    status: 'Active'
   };
 
   const activeName = activeRoleView === 'hr' ? 'Sarah Jenkins' : employeeProfile.name;
   const activePosition = activeRoleView === 'hr' ? 'HR Director' : employeeProfile.position;
   const activeInitials = activeRoleView === 'hr' ? 'HR' : activeName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
+  // Contact Info edit state
+  const [phoneInput, setPhoneInput] = useState(employeeProfile.phone || '+1 (555) 123-4567');
+  const [addressInput, setAddressInput] = useState(employeeProfile.address || 'San Francisco, CA');
+
+  const handleSaveContact = (e: React.FormEvent) => {
+    e.preventDefault();
+    HRMSStorage.updateEmployeeProfile(employeeProfile.id || employeeProfile.employeeId, {
+      phone: phoneInput,
+      address: addressInput
+    });
+    refreshData();
+    setIsEditingContact(false);
+    showToast(`Contact information updated for ${activeName}!`, 'success');
+  };
+
   const [todayAttendance, setTodayAttendance] = useState(
     HRMSStorage.getTodayAttendance(employeeProfile.employeeId)
   );
   const [isCheckedIn, setIsCheckedIn] = useState(!!todayAttendance?.checkIn && !todayAttendance?.checkOut);
-  const [secondsWorked, setSecondsWorked] = useState(14520); // ~4 hours
+  const [secondsWorked, setSecondsWorked] = useState(15034); // ~4 hours
   const [isOnBreak, setIsOnBreak] = useState(false);
 
   useEffect(() => {
@@ -187,19 +214,143 @@ export const EmployeeDashboard: React.FC = () => {
               )}
             </div>
 
-            {/* Profile Badge */}
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f5edf3] font-mono text-[13px] font-bold text-[#714B67] border border-[#714B67]/20 shadow-2xs dark:bg-slate-800 dark:text-[#8E587E]">
-                {activeInitials}
-              </div>
-              <div className="text-left leading-tight">
-                <p className="text-xs font-bold text-slate-900 dark:text-white font-sans">
-                  {activeName}
-                </p>
-                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  {activePosition}
-                </p>
-              </div>
+            {/* Top Right Profile Badge Button with Dropdown Panel for Edit Contact Info */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-slate-50/80 px-3 py-1.5 shadow-2xs hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-800/60 dark:hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f5edf3] font-mono text-[13px] font-bold text-[#714B67] border border-[#714B67]/20 shadow-2xs dark:bg-slate-800 dark:text-[#8E587E]">
+                  {activeInitials}
+                </div>
+                <div className="text-left leading-tight">
+                  <p className="text-xs font-bold text-slate-900 dark:text-white font-sans flex items-center gap-1">
+                    {activeName}
+                    <ChevronDown className="h-3 w-3 text-slate-400" />
+                  </p>
+                  <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                    {activePosition}
+                  </p>
+                </div>
+              </button>
+
+              {/* Profile Dropdown Panel containing Contact Details & Edit Form */}
+              {showProfileDropdown && (
+                <div className="absolute right-0 mt-2 w-96 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900 z-50 animate-in fade-in zoom-in-95 duration-200">
+                  {/* Profile Header */}
+                  <div className="flex items-center gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f5edf3] text-[#714B67] dark:bg-slate-800 dark:text-[#8E587E] border border-[#714B67]/30">
+                      <User className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-extrabold text-slate-900 dark:text-white font-sans">
+                          {activeName}
+                        </h4>
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                          Active
+                        </span>
+                      </div>
+                      <p className="text-xs font-semibold text-[#714B67] dark:text-[#8E587E]">
+                        {activePosition} • {employeeProfile.department || 'Engineering'}
+                      </p>
+                      <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                        ID: {employeeProfile.employeeId} | Joined: {employeeProfile.joiningDate || '2026-08-22'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Contact Info View vs Edit Form */}
+                  {!isEditingContact ? (
+                    <div className="mt-4 space-y-3">
+                      <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-slate-400 block">
+                          WORK EMAIL
+                        </span>
+                        <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-1 flex items-center gap-1.5">
+                          <Mail className="h-3.5 w-3.5 text-[#714B67]" />
+                          {employeeProfile.email || `${activeName.toLowerCase().replace(' ', '')}@dayflow.com`}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-slate-400 block">
+                          PHONE NUMBER
+                        </span>
+                        <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-1 flex items-center gap-1.5 font-mono">
+                          <Phone className="h-3.5 w-3.5 text-[#714B67]" />
+                          {phoneInput}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-slate-400 block">
+                          RESIDENTIAL ADDRESS
+                        </span>
+                        <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-1 flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5 text-[#714B67]" />
+                          {addressInput}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingContact(true)}
+                        className="w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-[#714B67] px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-[#5C3E54] transition-all"
+                      >
+                        <Edit className="h-4 w-4" />
+                        Edit Contact Info
+                      </button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSaveContact} className="mt-4 space-y-3">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-[0.06em] text-slate-500 block">
+                          Phone Number
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={phoneInput}
+                          onChange={e => setPhoneInput(e.target.value)}
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono font-semibold focus:border-[#714B67] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-[0.06em] text-slate-500 block">
+                          Residential Address
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={addressInput}
+                          onChange={e => setAddressInput(e.target.value)}
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold focus:border-[#714B67] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2">
+                        <button
+                          type="submit"
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#714B67] py-2 text-xs font-bold text-white hover:bg-[#5C3E54] shadow-sm"
+                        >
+                          <Save className="h-3.5 w-3.5" />
+                          Save Changes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingContact(false)}
+                          className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Logout Button */}
@@ -330,7 +481,7 @@ export const EmployeeDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* In-Place Toggleable Workspace Navigation Tabs */}
+        {/* Workspace Navigation Tabs (My Profile Details removed from center) */}
         <div className="border-b border-slate-200/80 pb-px dark:border-slate-800">
           <nav className="flex space-x-6 overflow-x-auto">
             <button
@@ -344,19 +495,6 @@ export const EmployeeDashboard: React.FC = () => {
             >
               <BarChart3 className="h-4 w-4" />
               Overview & Analytics
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveSubTab('profile')}
-              className={`flex items-center gap-2 border-b-2 py-3 text-xs font-semibold uppercase tracking-[0.06em] transition-all whitespace-nowrap ${
-                activeSubTab === 'profile'
-                  ? 'border-[#714B67] text-[#714B67] dark:border-[#8E587E] dark:text-[#8E587E]'
-                  : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400'
-              }`}
-            >
-              <User className="h-4 w-4" />
-              My Profile Details
             </button>
 
             <button
@@ -588,12 +726,6 @@ export const EmployeeDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {activeSubTab === 'profile' && (
-          <div className="animate-in fade-in duration-200">
-            <ProfileView />
           </div>
         )}
 
