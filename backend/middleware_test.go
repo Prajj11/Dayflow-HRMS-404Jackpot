@@ -79,7 +79,10 @@ func TestParseTokenRejectsWrongAlgorithm(t *testing.T) {
 	}
 }
 
-func TestAuthCookieSecurityAttributes(t *testing.T) {
+func TestAuthCookieSecurityAttributesSecure(t *testing.T) {
+	// Secure (prod-like) contexts must use SameSite=None — the frontend and
+	// backend live on different sites, so SameSite=Lax would never be sent
+	// on cross-site fetch() calls, breaking auth right after signin.
 	t.Setenv("COOKIE_SECURE", "true")
 	w := httptest.NewRecorder()
 	setAuthCookie(w, "signed-token")
@@ -89,8 +92,21 @@ func TestAuthCookieSecurityAttributes(t *testing.T) {
 		t.Fatalf("got %d cookies, want 1", len(cookies))
 	}
 	c := cookies[0]
-	if c.Name != authCookieName || !c.HttpOnly || !c.Secure || c.SameSite != http.SameSiteLaxMode || c.Path != "/" {
+	if c.Name != authCookieName || !c.HttpOnly || !c.Secure || c.SameSite != http.SameSiteNoneMode || c.Path != "/" {
 		t.Fatalf("cookie is missing security attributes: %#v", c)
+	}
+}
+
+func TestAuthCookieSecurityAttributesInsecure(t *testing.T) {
+	// Local HTTP dev: SameSite=None requires Secure, which HTTP can't set,
+	// but frontend/backend are same-site (localhost) there anyway, so Lax
+	// still works.
+	t.Setenv("COOKIE_SECURE", "false")
+	w := httptest.NewRecorder()
+	setAuthCookie(w, "signed-token")
+	c := w.Result().Cookies()[0]
+	if c.Secure || c.SameSite != http.SameSiteLaxMode {
+		t.Fatalf("unexpected cookie attributes for insecure context: %#v", c)
 	}
 }
 
