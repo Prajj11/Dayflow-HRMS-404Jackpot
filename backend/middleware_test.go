@@ -1,0 +1,113 @@
+package main
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+)
+
+const testJWTSecret = "0123456789abcdef0123456789abcdef"
+
+func TestIssueAndParseToken(t *testing.T) {
+	t.Setenv("JWT_SECRET", testJWTSecret)
+	token, err := issueToken(42, "employee")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := parseToken(token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.UserID != 42 || c.Role != "employee" || c.Subject != "42" {
+		t.Fatalf("unexpected claims: %#v", c)
+	}
+	if c.ExpiresAt == nil || time.Until(c.ExpiresAt.Time) <= 0 {
+		t.Fatal("token must have a future expiry")
+	}
+}
+
+func TestIssueTokenRejectsWeakSecret(t *testing.T) {
+	t.Setenv("JWT_SECRET", "too-short")
+	if _, err := issueToken(42, "employee"); err == nil {
+		t.Fatal("expected weak secret to be rejected")
+	}
+}
+
+func TestParseTokenRejectsExpiredToken(t *testing.T) {
+	t.Setenv("JWT_SECRET", testJWTSecret)
+	now := time.Now().UTC()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims{
+		UserID: 42,
+		Role:   "employee",
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    jwtIssuer,
+			Subject:   "42",
+			Audience:  jwt.ClaimStrings{jwtAudience},
+			IssuedAt:  jwt.NewNumericDate(now.Add(-time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(-time.Minute)),
+		},
+	})
+	signed, err := token.SignedString([]byte(testJWTSecret))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parseToken(signed); err == nil {
+		t.Fatal("expected expired token to be rejected")
+	}
+}
+
+func TestParseTokenRejectsWrongAlgorithm(t *testing.T) {
+	t.Setenv("JWT_SECRET", testJWTSecret)
+	token := jwt.NewWithClaims(jwt.SigningMethodNone, claims{
+		UserID: 42,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    jwtIssuer,
+			Subject:   "42",
+			Audience:  jwt.ClaimStrings{jwtAudience},
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+		},
+	})
+	signed, err := token.SignedString(jwt.UnsafeAllowNoneSignatureType)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parseToken(signed); err == nil {
+		t.Fatal("expected an unsigned token to be rejected")
+	}
+}
+
+func TestAuthCookieSecurityAttributes(t *testing.T) {
+	t.Setenv("COOKIE_SECURE", "true")
+	w := httptest.NewRecorder()
+	setAuthCookie(w, "signed-token")
+	res := w.Result()
+	cookies := res.Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("got %d cookies, want 1", len(cookies))
+	}
+	c := cookies[0]
+	if c.Name != authCookieName || !c.HttpOnly || !c.Secure || c.SameSite != http.SameSiteLaxMode || c.Path != "/" {
+		t.Fatalf("cookie is missing security attributes: %#v", c)
+	}
+}
+
+func TestCORSRejectsCrossOriginStateChange(t *testing.T) {
+	t.Setenv("FRONTEND_ORIGIN", "https://dayflow.example")
+	called := false
+	handler := corsMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		called = true
+	}))
+	req := httptest.NewRequest(http.MethodPost, "/api/leave", nil)
+	req.Header.Set("Origin", "https://attacker.example")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("got status %d, want %d", w.Code, http.StatusForbidden)
+	}
+	if called {
+		t.Fatal("cross-origin request reached protected handler")
+	}
+}

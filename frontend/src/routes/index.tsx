@@ -10,7 +10,7 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
-import { apiFetch, clearSession, getToken } from "../lib/api";
+import { apiFetch, clearSession } from "../lib/api";
 
 export const Route = createFileRoute("/")({
   component: EmployeeDashboard,
@@ -90,25 +90,24 @@ function EmployeeDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!getToken()) {
-      navigate({ to: "/login" });
-      return;
-    }
-    Promise.all([
-      apiFetch<{ attendance: AttendanceRow[] }>("/api/attendance/me?range=weekly"),
-      apiFetch<{ leave_requests: LeaveRow[] }>("/api/leave/me"),
-    ])
-      .then(([a, l]) => {
+	Promise.all([
+	  apiFetch("/auth/me"),
+	  apiFetch<{ attendance: AttendanceRow[] }>("/api/attendance/me?range=weekly"),
+	  apiFetch<{ leave_requests: LeaveRow[] }>("/api/leave/me"),
+	])
+	  .then(([, a, l]) => {
         setWeek(a.attendance);
         setRecentLeave(l.leave_requests.slice(0, 3));
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+	  .catch(() => { setLoading(false); navigate({ to: "/login" }); });
   }, [navigate]);
 
-  function logout() {
-    clearSession();
-    navigate({ to: "/login" });
+	async function logout() {
+	  try { await apiFetch("/auth/logout", { method: "POST" }); } finally {
+		clearSession();
+		navigate({ to: "/login" });
+	  }
   }
 
   return (

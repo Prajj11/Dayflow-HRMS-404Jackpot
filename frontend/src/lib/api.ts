@@ -3,27 +3,19 @@ if (!API_BASE) {
   throw new Error("VITE_API_URL is not set — refusing to guess a backend URL");
 }
 
-const TOKEN_KEY = "dayflow_token";
 const ROLE_KEY = "dayflow_role";
-
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
-}
 
 export function getRole(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(ROLE_KEY);
 }
 
-export function setSession(token: string, role: string) {
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(ROLE_KEY, role);
+export function setSession(role: string) {
+	localStorage.setItem(ROLE_KEY, role);
 }
 
 export function clearSession() {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(ROLE_KEY);
+	localStorage.removeItem(ROLE_KEY);
 }
 
 export class ApiError extends Error {
@@ -35,14 +27,12 @@ export class ApiError extends Error {
 }
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  const headers: Record<string, string> = {
+	const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string> | undefined),
   };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+	const res = await fetch(`${API_BASE}${path}`, { ...options, headers, credentials: "include" });
+	if (res.status === 401) clearSession();
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {

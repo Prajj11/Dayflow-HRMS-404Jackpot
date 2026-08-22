@@ -11,7 +11,6 @@ function Signup() {
   const [employeeId, setEmployeeId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"employee" | "admin">("employee");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -23,7 +22,7 @@ function Signup() {
     try {
       await apiFetch("/auth/signup", {
         method: "POST",
-        body: JSON.stringify({ employee_id: employeeId, email, password, role }),
+		body: JSON.stringify({ employee_id: employeeId, email, password }),
       });
       setDone(true);
     } catch (e) {
@@ -98,28 +97,6 @@ function Signup() {
               className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-              Role
-            </label>
-            <div className="inline-flex rounded-lg border border-border bg-background p-1">
-              {(["employee", "admin"] as const).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRole(r)}
-                  className={`rounded-md px-3.5 py-1.5 text-sm font-medium capitalize transition-colors ${
-                    role === r
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {error && <p className="text-xs text-destructive">{error}</p>}
 
           <button

@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -13,8 +15,12 @@ import (
 type contextKey string
 
 const (
-	ctxUserID contextKey = "user_id"
-	ctxRole   contextKey = "role"
+	ctxUserID      contextKey = "user_id"
+	ctxRole        contextKey = "role"
+	authCookieName            = "dayflow_access"
+	jwtIssuer                 = "dayflow-api"
+	jwtAudience               = "dayflow-web"
+	accessTokenTTL            = 30 * time.Minute
 )
 
 type claims struct {
@@ -23,43 +29,110 @@ type claims struct {
 	jwt.RegisteredClaims
 }
 
-func jwtSecret() []byte {
+func jwtSecret() ([]byte, error) {
 	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		secret = "dev-only-insecure-secret-change-me"
+	if len(secret) < 32 {
+		return nil, fmt.Errorf("JWT_SECRET must contain at least 32 characters")
 	}
-	return []byte(secret)
+	return []byte(secret), nil
 }
 
 func issueToken(userID int, role string) (string, error) {
+	secret, err := jwtSecret()
+	if err != nil {
+		return "", err
+	}
+	now := time.Now().UTC()
+	tokenID, err := generateToken()
+	if err != nil {
+		return "", err
+	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims{
 		UserID: userID,
 		Role:   role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    jwtIssuer,
+			Subject:   strconv.Itoa(userID),
+			Audience:  jwt.ClaimStrings{jwtAudience},
+			ExpiresAt: jwt.NewNumericDate(now.Add(accessTokenTTL)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now.Add(-5 * time.Second)),
+			ID:        tokenID,
+		},
 	})
-	return token.SignedString(jwtSecret())
+	return token.SignedString(secret)
 }
 
 func parseToken(tokenStr string) (*claims, error) {
-	c := &claims{}
-	_, err := jwt.ParseWithClaims(tokenStr, c, func(t *jwt.Token) (interface{}, error) {
-		return jwtSecret(), nil
-	})
+	secret, err := jwtSecret()
 	if err != nil {
 		return nil, err
+	}
+	c := &claims{}
+	token, err := jwt.ParseWithClaims(tokenStr, c, func(_ *jwt.Token) (interface{}, error) {
+		return secret, nil
+	},
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+		jwt.WithIssuer(jwtIssuer),
+		jwt.WithAudience(jwtAudience),
+		jwt.WithExpirationRequired(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	if !token.Valid || c.UserID <= 0 || c.Subject != strconv.Itoa(c.UserID) {
+		return nil, fmt.Errorf("invalid token claims")
 	}
 	return c, nil
 }
 
+func setAuthCookie(w http.ResponseWriter, token string) {
+	secure, _ := strconv.ParseBool(os.Getenv("COOKIE_SECURE"))
+	http.SetCookie(w, &http.Cookie{
+		Name:     authCookieName,
+		Value:    token,
+		Path:     "/",
+		MaxAge:   int(accessTokenTTL.Seconds()),
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func clearAuthCookie(w http.ResponseWriter) {
+	secure, _ := strconv.ParseBool(os.Getenv("COOKIE_SECURE"))
+	http.SetCookie(w, &http.Cookie{
+		Name:     authCookieName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func requestToken(r *http.Request) string {
+	if cookie, err := r.Cookie(authCookieName); err == nil {
+		return cookie.Value
+	}
+	auth := r.Header.Get("Authorization")
+	if strings.HasPrefix(auth, "Bearer ") {
+		return strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
+	}
+	return ""
+}
+
 func requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		auth := r.Header.Get("Authorization")
-		if !strings.HasPrefix(auth, "Bearer ") {
-			http.Error(w, `{"error":"missing bearer token"}`, http.StatusUnauthorized)
+		token := requestToken(r)
+		if token == "" {
+			writeError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
-		c, err := parseToken(strings.TrimPrefix(auth, "Bearer "))
+		c, err := parseToken(token)
 		if err != nil {
-			http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+			writeError(w, http.StatusUnauthorized, "invalid or expired session")
 			return
 		}
 		ctx := context.WithValue(r.Context(), ctxUserID, c.UserID)

@@ -17,6 +17,9 @@ import (
 
 func main() {
 	ctx := context.Background()
+	if _, err := jwtSecret(); err != nil {
+		log.Fatalf("auth config: %v", err)
+	}
 	pool, err := initPool(ctx)
 	if err != nil {
 		log.Fatalf("db connect: %v", err)
@@ -49,6 +52,8 @@ func main() {
 	mux.HandleFunc("/auth/signup", signupHandler(pool))
 	mux.HandleFunc("/auth/signin", signinHandler(pool))
 	mux.HandleFunc("/auth/verify", verifyHandler(pool))
+	mux.HandleFunc("/auth/logout", logoutHandler())
+	mux.HandleFunc("/auth/me", meHandler(pool))
 
 	// HRMS: profile
 	mux.HandleFunc("/api/profile/me", func(w http.ResponseWriter, r *http.Request) {
@@ -489,10 +494,17 @@ func windowFromReq(r *http.Request) (time.Time, time.Time, error) {
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		if origin == "" {
-			origin = "*"
+		allowedOrigin := os.Getenv("FRONTEND_ORIGIN")
+		if origin != "" && origin != allowedOrigin &&
+			(r.Method == http.MethodPost || r.Method == http.MethodPatch || r.Method == http.MethodDelete || r.Method == http.MethodOptions) {
+			writeError(w, http.StatusForbidden, "origin not allowed")
+			return
 		}
-		w.Header().Set("Access-Control-Allow-Origin", origin)
+		if origin != "" && origin == allowedOrigin {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Vary", "Origin")
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if r.Method == http.MethodOptions {
