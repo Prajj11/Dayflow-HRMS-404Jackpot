@@ -73,7 +73,11 @@ func main() {
 			deleteEmployeeHandler(pool)(w, r)
 			return
 		}
-		writeError(w, http.StatusMethodNotAllowed, "use DELETE /api/employees/:id")
+		if r.Method == http.MethodPatch {
+			verifyEmployeeEmailHandler(pool)(w, r)
+			return
+		}
+		writeError(w, http.StatusMethodNotAllowed, "use DELETE or PATCH /api/employees/:id")
 	})
 	mux.HandleFunc("/api/profile/me", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPatch {

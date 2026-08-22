@@ -83,6 +83,30 @@ func listEmployeesHandler(pool *pgxpool.Pool) http.HandlerFunc {
 }
 
 
+// verifyEmployeeEmailHandler lets an admin manually mark an employee's email
+// verified — e.g. when self-signup's verification email can't be delivered
+// (SMTP misconfiguration, employee mistyped their address) and the admin has
+// otherwise confirmed the account belongs to a real employee.
+func verifyEmployeeEmailHandler(pool *pgxpool.Pool) http.HandlerFunc {
+	return requireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		id, err := pathID(r)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid id")
+			return
+		}
+		tag, err := pool.Exec(r.Context(), `UPDATE users SET email_verified = TRUE, verification_token = NULL WHERE id = $1`, id)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "could not verify employee")
+			return
+		}
+		if tag.RowsAffected() == 0 {
+			writeError(w, http.StatusNotFound, "employee not found")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"status": "verified"})
+	})
+}
+
 func deleteEmployeeHandler(pool *pgxpool.Pool) http.HandlerFunc {
 	return requireAdmin(func(w http.ResponseWriter, r *http.Request) {
 		id, err := pathID(r)
