@@ -23,6 +23,12 @@ func main() {
 	}
 	defer pool.Close()
 
+	redisClient, err := initRedis(ctx)
+	if err != nil {
+		log.Fatalf("redis connect: %v", err)
+	}
+	defer redisClient.Close()
+
 	askHandler, err := ask.NewHandler(pool, ask.NewGroqSelector(), "http://localhost:8080", "audit.jsonl")
 	if err != nil {
 		log.Fatalf("ask handler: %v", err)
