@@ -1,6 +1,6 @@
-// MCP server — exposes structured tools over access-control data.
-// No DB driver imported. All tools are HTTP calls to /api/q/*.
-// No name or employee_code is accessible through any tool.
+// MCP server — exposes structured tools over Dayflow HRMS data.
+// Calls the backend's admin API using a shared internal service token
+// (no DB driver, no direct database access).
 package main
 
 import (
@@ -14,24 +14,22 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-var apiBase = "http://localhost:8080"
+var (
+	apiBase       = "http://localhost:8080"
+	internalToken string
+)
 
-type timeInput struct {
-	Start string `json:"start"`
-	End   string `json:"end"`
-	Limit int    `json:"limit,omitempty"`
+type employeeIDInput struct {
+	UserID int `json:"user_id"`
 }
 
-type userInput struct {
-	OrgUserID int64  `json:"org_user_id"`
-	Start     string `json:"start"`
-	End       string `json:"end"`
+type attendanceRangeInput struct {
+	UserID int    `json:"user_id"`
+	Range  string `json:"range,omitempty"`
 }
 
-type doorInput struct {
-	AccessPointID int64  `json:"access_point_id"`
-	Start         string `json:"start"`
-	End           string `json:"end"`
+type todaysAttendanceInput struct {
+	Date string `json:"date,omitempty"`
 }
 
 func addTool[In any](s *mcp.Server, name, desc string, fn func(context.Context, In) (string, error)) {
@@ -50,65 +48,52 @@ func main() {
 	if b := os.Getenv("QUERY_API_BASE"); b != "" {
 		apiBase = b
 	}
+	internalToken = os.Getenv("MCP_INTERNAL_TOKEN")
 
-	server := mcp.NewServer(&mcp.Implementation{Name: "activity-digest-mcp", Version: "2.0"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "dayflow-hrms-mcp", Version: "1.0"}, nil)
 
-	addTool(server, "get_user_entries",
-		"Get badge-in count and daily breakdown for a specific user. org_user_id is a numeric id from the question — never invent one.",
-		func(ctx context.Context, in userInput) (string, error) {
-			return callAPI(ctx, "/api/q/user-entries", map[string]string{
-				"org_user_id": fmt.Sprint(in.OrgUserID),
-				"start": in.Start, "end": in.End,
-			})
-		})
-
-	addTool(server, "get_door_activity",
-		"Get entry count and hourly breakdown for a specific door. access_point_id is a numeric id from the question — never invent one.",
-		func(ctx context.Context, in doorInput) (string, error) {
-			return callAPI(ctx, "/api/q/door-activity", map[string]string{
-				"access_point_id": fmt.Sprint(in.AccessPointID),
-				"start": in.Start, "end": in.End,
-			})
-		})
-
-	addTool(server, "get_org_summary",
-		"Get org-wide summary: active users, total entries, peak hour, silent doors.",
-		func(ctx context.Context, in timeInput) (string, error) {
-			return callAPI(ctx, "/api/q/org-summary", map[string]string{"start": in.Start, "end": in.End})
-		})
-
-	addTool(server, "get_hourly_breakdown",
-		"Get total entry count broken down by hour of day for a time range.",
-		func(ctx context.Context, in timeInput) (string, error) {
-			return callAPI(ctx, "/api/q/hourly-breakdown", map[string]string{"start": in.Start, "end": in.End})
-		})
-
-	addTool(server, "get_user_list",
-		"Get all org_user_id values. Returns IDs only — no names.",
+	addTool(server, "list_employees",
+		"List all employees with their employee ID, name, role, job title, and department.",
 		func(ctx context.Context, _ struct{}) (string, error) {
-			return callAPI(ctx, "/api/q/user-list", nil)
+			return callAPI(ctx, "/api/employees", nil)
 		})
 
-	addTool(server, "get_door_list",
-		"Get all doors with their access_point_id and serial names.",
+	addTool(server, "get_todays_attendance",
+		"Get today's attendance status for every employee (or a specific date if given, YYYY-MM-DD).",
+		func(ctx context.Context, in todaysAttendanceInput) (string, error) {
+			params := map[string]string{}
+			if in.Date != "" {
+				params["date"] = in.Date
+			}
+			return callAPI(ctx, "/api/attendance/all", params)
+		})
+
+	addTool(server, "get_employee_attendance",
+		"Get a specific employee's attendance history. user_id is a numeric id from list_employees — never invent one. range is 'daily' or 'weekly'.",
+		func(ctx context.Context, in attendanceRangeInput) (string, error) {
+			params := map[string]string{}
+			if in.Range != "" {
+				params["range"] = in.Range
+			}
+			return callAPI(ctx, fmt.Sprintf("/api/attendance/%d", in.UserID), params)
+		})
+
+	addTool(server, "get_pending_leave_requests",
+		"Get every leave request across all employees, including status (pending/approved/rejected).",
 		func(ctx context.Context, _ struct{}) (string, error) {
-			return callAPI(ctx, "/api/q/door-list", nil)
+			return callAPI(ctx, "/api/leave/all", nil)
 		})
 
-	addTool(server, "get_top_users",
-		"Get the most active users by entry count in a time range. Returns org_user_id and count.",
-		func(ctx context.Context, in timeInput) (string, error) {
-			return callAPI(ctx, "/api/q/top-users", map[string]string{
-				"start": in.Start, "end": in.End, "limit": fmt.Sprint(in.Limit),
-			})
+	addTool(server, "get_employee_payroll",
+		"Get a specific employee's salary structure and net pay. user_id is a numeric id from list_employees — never invent one.",
+		func(ctx context.Context, in employeeIDInput) (string, error) {
+			return callAPI(ctx, fmt.Sprintf("/api/payroll/%d", in.UserID), nil)
 		})
 
-	addTool(server, "get_top_doors",
-		"Get the most active doors by entry count in a time range.",
-		func(ctx context.Context, in timeInput) (string, error) {
-			return callAPI(ctx, "/api/q/top-doors", map[string]string{
-				"start": in.Start, "end": in.End, "limit": fmt.Sprint(in.Limit),
-			})
+	addTool(server, "get_employee_profile",
+		"Get a specific employee's profile: personal and job details. user_id is a numeric id from list_employees — never invent one.",
+		func(ctx context.Context, in employeeIDInput) (string, error) {
+			return callAPI(ctx, fmt.Sprintf("/api/profile/%d", in.UserID), nil)
 		})
 
 	port := os.Getenv("PORT")
@@ -128,6 +113,9 @@ func callAPI(ctx context.Context, path string, params map[string]string) (string
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiBase+path, nil)
 	if err != nil {
 		return "", err
+	}
+	if internalToken != "" {
+		req.Header.Set("X-Internal-Token", internalToken)
 	}
 	q := req.URL.Query()
 	for k, v := range params {
