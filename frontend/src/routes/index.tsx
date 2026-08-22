@@ -85,7 +85,10 @@ function buildSentence(s: Summary): { subject: string; peak: string; silent: str
   return { subject, peak, silent };
 }
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_URL as string;
+if (!API_BASE) {
+  throw new Error("VITE_API_URL is not set — refusing to guess a backend URL");
+}
 
 const dayFmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
 const clockFmt = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
