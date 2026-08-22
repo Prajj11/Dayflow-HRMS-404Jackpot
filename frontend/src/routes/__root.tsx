@@ -73,8 +73,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Activity Digest — Access Control Admin" },
-      { name: "description", content: "Daily and weekly summaries of office door entry activity for admins." },
+      { title: "Dayflow — Human Resource Management" },
+      { name: "description", content: "Employee profiles, attendance, leave, and payroll — every workday, aligned." },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

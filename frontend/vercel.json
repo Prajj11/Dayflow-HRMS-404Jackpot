@@ -1,0 +1,5 @@
+{
+  "buildCommand": "npm run build && mkdir -p public && cp -r dist/client/* public/",
+  "outputDirectory": "public",
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+}
