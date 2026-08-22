@@ -123,8 +123,22 @@ func requestToken(r *http.Request) string {
 	return ""
 }
 
+// internalServiceToken authenticates trusted server-to-server callers (the MCP
+// server) as an admin, since they have no browser session or JWT of their own.
+// Only active when MCP_INTERNAL_TOKEN is set; empty/unset means the path is disabled.
+func internalServiceToken(r *http.Request) bool {
+	expected := os.Getenv("MCP_INTERNAL_TOKEN")
+	return expected != "" && r.Header.Get("X-Internal-Token") == expected
+}
+
 func requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if internalServiceToken(r) {
+			ctx := context.WithValue(r.Context(), ctxUserID, 0)
+			ctx = context.WithValue(ctx, ctxRole, "admin")
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
 		token := requestToken(r)
 		if token == "" {
 			writeError(w, http.StatusUnauthorized, "authentication required")

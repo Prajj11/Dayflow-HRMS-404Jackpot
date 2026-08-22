@@ -40,6 +40,7 @@ services:
       APP_ENV: development
       GROQ_API_KEY: ${GROQ_API_KEY}
       GROQ_API_KEY_FALLBACK: ${GROQ_API_KEY_FALLBACK}
+      MCP_INTERNAL_TOKEN: ${MCP_INTERNAL_TOKEN:-dayflow-local-mcp-token}
     depends_on:
       postgres:
         condition: service_healthy
@@ -52,6 +53,7 @@ services:
       - "8091:8081"
     environment:
       QUERY_API_BASE: http://backend:8080
+      MCP_INTERNAL_TOKEN: ${MCP_INTERNAL_TOKEN:-dayflow-local-mcp-token}
     depends_on:
       - backend
 
