@@ -52,3 +52,19 @@ CREATE TABLE IF NOT EXISTS leave_requests (
     reviewed_by INTEGER REFERENCES users(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS gatepoint_events (
+    id SERIAL PRIMARY KEY,
+    user_id BIGINT,
+    user_name TEXT,
+    event_type TEXT NOT NULL DEFAULT 'authorised_access',
+    accessed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    access_point_id BIGINT,
+    access_point_name TEXT NOT NULL DEFAULT '',
+    mobile_access_mode TEXT NOT NULL DEFAULT '',
+    access_type TEXT NOT NULL DEFAULT ''
+);
+
+CREATE OR REPLACE VIEW gatepoint_events_anon AS
+SELECT id, user_id, event_type, accessed_at, access_point_id, access_point_name, mobile_access_mode, access_type, (accessed_at::date)::text as day
+FROM gatepoint_events;

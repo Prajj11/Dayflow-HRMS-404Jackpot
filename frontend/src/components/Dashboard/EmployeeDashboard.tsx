@@ -36,7 +36,11 @@ import {
   MapPin
 } from 'lucide-react';
 
-export const EmployeeDashboard: React.FC = () => {
+export interface EmployeeDashboardProps {
+  onLogout?: () => void;
+}
+
+export const EmployeeDashboard: React.FC<EmployeeDashboardProps> = ({ onLogout }) => {
   const { currentUser, employees, selectedEmployeeId, leaves, attendance, showToast, refreshData } = useHRMS();
   const [activeRoleView, setActiveRoleView] = useState<'hr' | 'employee'>('employee');
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'attendance' | 'leaves' | 'payroll'>('overview');
@@ -355,7 +359,7 @@ export const EmployeeDashboard: React.FC = () => {
 
             {/* Logout Button */}
             <button
-              onClick={() => { window.location.href = '/login'; }}
+              onClick={() => { if (onLogout) { onLogout(); } else { window.location.href = '/login'; } }}
               title="Logout"
               className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-white transition-all"
             >
