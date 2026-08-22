@@ -111,7 +111,14 @@ func main() {
 			})
 		})
 
-	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8081"
+	}
+
+	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, nil)
+	fmt.Printf("mcp server listening on :%s\n", port)
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		fmt.Fprintf(os.Stderr, "mcp: %v\n", err)
 		os.Exit(1)
 	}
