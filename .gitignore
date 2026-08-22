@@ -36,3 +36,4 @@ audit.jsonl
 node_modules/
 dist/
 mcpserver/mcpserver
+.claude/
