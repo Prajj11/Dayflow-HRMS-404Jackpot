@@ -56,7 +56,20 @@ func main() {
 	mux.HandleFunc("/auth/me", meHandler(pool))
 
 	// HRMS: profile
-	mux.HandleFunc("/api/employees", listEmployeesHandler(pool))
+	mux.HandleFunc("/api/employees", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			createEmployeeHandler(pool)(w, r)
+			return
+		}
+		listEmployeesHandler(pool)(w, r)
+	})
+	mux.HandleFunc("/api/employees/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			deleteEmployeeHandler(pool)(w, r)
+			return
+		}
+		writeError(w, http.StatusMethodNotAllowed, "use DELETE /api/employees/:id")
+	})
 	mux.HandleFunc("/api/profile/me", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPatch {
 			patchMyProfileHandler(pool)(w, r)
@@ -77,6 +90,7 @@ func main() {
 	mux.HandleFunc("/api/attendance/checkout", checkoutHandler(pool))
 	mux.HandleFunc("/api/attendance/me", getMyAttendanceHandler(pool))
 	mux.HandleFunc("/api/attendance/all", getAllAttendanceHandler(pool))
+	mux.HandleFunc("/api/attendance/override", overrideAttendanceHandler(pool))
 	mux.HandleFunc("/api/attendance/", getAttendanceByIDHandler(pool))
 
 	// HRMS: leave
