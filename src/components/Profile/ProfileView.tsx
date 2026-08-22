@@ -25,10 +25,26 @@ export const ProfileView: React.FC = () => {
   const { employees, selectedEmployeeId, setSelectedEmployeeId, activeRole, currentUser, refreshData, showToast } = useHRMS();
   const [activeTab, setActiveTab] = useState<'personal' | 'job' | 'salary' | 'documents'>('personal');
 
-  // Selected employee profile
+  // Selected employee profile (defaults to currentUser's employeeId)
+  const activeEmployeeId = currentUser?.employeeId || selectedEmployeeId || 'DF-1002';
   const employee: EmployeeProfile = employees.find(
-    e => e.employeeId === selectedEmployeeId || e.id === selectedEmployeeId
-  ) || employees[0];
+    e => e.employeeId === activeEmployeeId || e.id === activeEmployeeId
+  ) || employees[0] || {
+    id: 'usr-1002',
+    employeeId: 'DF-1002',
+    name: currentUser?.name || 'Alex Rivera',
+    email: currentUser?.email || 'alex.rivera@dayflow.com',
+    phone: '+1 (555) 876-5432',
+    address: '120 Market Street, Apt 4B, San Francisco, CA',
+    department: currentUser?.department || 'Engineering',
+    position: currentUser?.position || 'Senior Frontend Engineer',
+    manager: 'Sarah Jenkins',
+    joiningDate: '2023-01-10',
+    status: 'Active',
+    avatar: '',
+    salary: { basic: 120000, hra: 48000, specialAllowance: 24000, pf: 12000, tax: 6000, netSalary: 152000 },
+    documents: []
+  };
 
   const canEditAll = activeRole === 'hr';
 
@@ -38,7 +54,7 @@ export const ProfileView: React.FC = () => {
   const [addressInput, setAddressInput] = useState(employee?.address || '');
   const [positionInput, setPositionInput] = useState(employee?.position || '');
   const [departmentInput, setDepartmentInput] = useState(employee?.department || '');
-  const [basicSalaryInput, setBasicSalaryInput] = useState(employee?.salary?.basic || 60000);
+  const [basicSalaryInput, setBasicSalaryInput] = useState(employee?.salary?.basic || 120000);
 
   const startEdit = () => {
     setPhoneInput(employee.phone);
@@ -81,7 +97,7 @@ export const ProfileView: React.FC = () => {
       {activeRole === 'hr' && (
         <div className="flex items-center justify-between rounded-xl bg-slate-100 p-2.5 dark:bg-slate-800">
           <span className="text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-            <ShieldCheck className="h-4 w-4 text-indigo-600" />
+            <ShieldCheck className="h-4 w-4 text-[#714B67]" />
             Viewing Employee:
           </span>
           <select
@@ -102,11 +118,11 @@ export const ProfileView: React.FC = () => {
       <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
-            <img
-              src={employee.avatar}
-              alt={employee.name}
-              className="h-20 w-20 rounded-2xl object-cover border-2 border-indigo-600 shadow-md"
-            />
+            {/* Clean SVG Icon Avatar (Human face photo removed) */}
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-[#f5edf3] text-[#714B67] dark:bg-slate-800 dark:text-[#8E587E] border-2 border-[#714B67]/30 shadow-md">
+              <User className="h-10 w-10" />
+            </div>
+
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
@@ -122,7 +138,7 @@ export const ProfileView: React.FC = () => {
                   {employee.status}
                 </span>
               </div>
-              <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+              <p className="text-xs font-semibold text-[#714B67] dark:text-[#8E587E]">
                 {employee.position} • {employee.department}
               </p>
               <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
@@ -133,7 +149,7 @@ export const ProfileView: React.FC = () => {
 
           <button
             onClick={startEdit}
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-indigo-600/20 hover:bg-indigo-500 transition-all"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-[#714B67] hover:bg-[#5C3E54] px-4 py-2 text-xs font-bold text-white shadow-md transition-all"
           >
             <Edit className="h-4 w-4" />
             {canEditAll ? 'Edit All Details (Admin)' : 'Edit Contact Info'}
@@ -156,7 +172,7 @@ export const ProfileView: React.FC = () => {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center gap-2 border-b-2 px-4 py-3 text-xs font-bold transition-all ${
                   isActive
-                    ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                    ? 'border-[#714B67] text-[#714B67] dark:text-[#8E587E]'
                     : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                 }`}
               >
@@ -176,7 +192,7 @@ export const ProfileView: React.FC = () => {
             <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/40">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Work Email</span>
               <p className="mt-1 text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Mail className="h-4 w-4 text-indigo-500" />
+                <Mail className="h-4 w-4 text-[#714B67]" />
                 {employee.email}
               </p>
             </div>
@@ -184,7 +200,7 @@ export const ProfileView: React.FC = () => {
             <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/40">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Phone Number</span>
               <p className="mt-1 text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Phone className="h-4 w-4 text-indigo-500" />
+                <Phone className="h-4 w-4 text-[#714B67]" />
                 {employee.phone}
               </p>
             </div>
@@ -192,7 +208,7 @@ export const ProfileView: React.FC = () => {
             <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/40 md:col-span-2">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Residential Address</span>
               <p className="mt-1 text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-indigo-500" />
+                <MapPin className="h-4 w-4 text-[#714B67]" />
                 {employee.address}
               </p>
             </div>
@@ -205,7 +221,7 @@ export const ProfileView: React.FC = () => {
             <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/40">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Department</span>
               <p className="mt-1 text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Building className="h-4 w-4 text-indigo-500" />
+                <Building className="h-4 w-4 text-[#714B67]" />
                 {employee.department}
               </p>
             </div>
@@ -213,7 +229,7 @@ export const ProfileView: React.FC = () => {
             <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/40">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Reporting Manager</span>
               <p className="mt-1 text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <User className="h-4 w-4 text-indigo-500" />
+                <User className="h-4 w-4 text-[#714B67]" />
                 {employee.manager}
               </p>
             </div>
@@ -221,7 +237,7 @@ export const ProfileView: React.FC = () => {
             <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/40">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Designation</span>
               <p className="mt-1 text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Briefcase className="h-4 w-4 text-indigo-500" />
+                <Briefcase className="h-4 w-4 text-[#714B67]" />
                 {employee.position}
               </p>
             </div>
@@ -229,7 +245,7 @@ export const ProfileView: React.FC = () => {
             <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/40">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Joining Date</span>
               <p className="mt-1 text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-indigo-500" />
+                <Calendar className="h-4 w-4 text-[#714B67]" />
                 {employee.joiningDate}
               </p>
             </div>
@@ -243,8 +259,8 @@ export const ProfileView: React.FC = () => {
               <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
                 Monthly Compensation Breakdown
               </h4>
-              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                Net Pay: ${employee.salary.netSalary.toLocaleString()} / mo
+              <span className="text-xs font-bold text-[#714B67] dark:text-[#8E587E]">
+                Net Pay: ₹{employee.salary.netSalary.toLocaleString()} / mo
               </span>
             </div>
 
@@ -252,21 +268,21 @@ export const ProfileView: React.FC = () => {
               <div className="rounded-xl bg-slate-50 p-3.5 dark:bg-slate-800/50">
                 <p className="text-[10px] font-bold text-slate-400 uppercase">Basic Salary</p>
                 <p className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">
-                  ${employee.salary.basic.toLocaleString()}
+                  ₹{employee.salary.basic.toLocaleString()}
                 </p>
               </div>
 
               <div className="rounded-xl bg-slate-50 p-3.5 dark:bg-slate-800/50">
                 <p className="text-[10px] font-bold text-slate-400 uppercase">House Rent Allowance (HRA)</p>
                 <p className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">
-                  ${employee.salary.hra.toLocaleString()}
+                  ₹{employee.salary.hra.toLocaleString()}
                 </p>
               </div>
 
               <div className="rounded-xl bg-slate-50 p-3.5 dark:bg-slate-800/50">
                 <p className="text-[10px] font-bold text-slate-400 uppercase">Special Allowances</p>
                 <p className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">
-                  ${employee.salary.specialAllowance.toLocaleString()}
+                  ₹{employee.salary.specialAllowance.toLocaleString()}
                 </p>
               </div>
             </div>
@@ -274,8 +290,8 @@ export const ProfileView: React.FC = () => {
             <div className="rounded-xl border border-rose-100 bg-rose-50/50 p-3.5 dark:border-rose-950/50 dark:bg-rose-950/20">
               <p className="text-xs font-bold text-rose-700 dark:text-rose-400">Standard Deductions</p>
               <div className="mt-2 flex justify-between text-xs text-slate-600 dark:text-slate-400">
-                <span>Provident Fund (PF): ${employee.salary.pf.toLocaleString()}</span>
-                <span>Income Tax (TDS): ${employee.salary.tax.toLocaleString()}</span>
+                <span>Provident Fund (PF): ₹{employee.salary.pf.toLocaleString()}</span>
+                <span>Income Tax (TDS): ₹{employee.salary.tax.toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -290,7 +306,7 @@ export const ProfileView: React.FC = () => {
               </h4>
               <button
                 onClick={() => showToast('Document upload simulated!', 'info')}
-                className="flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+                className="flex items-center gap-1 text-xs font-bold text-[#714B67] hover:text-[#5C3E54]"
               >
                 <Upload className="h-3.5 w-3.5" />
                 Upload New Document
@@ -307,7 +323,7 @@ export const ProfileView: React.FC = () => {
                     className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/40"
                   >
                     <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-indigo-600" />
+                      <FileText className="h-5 w-5 text-[#714B67]" />
                       <div>
                         <p className="text-xs font-bold text-slate-900 dark:text-white">{doc.title}</p>
                         <p className="text-[10px] text-slate-400">
@@ -353,7 +369,7 @@ export const ProfileView: React.FC = () => {
                   type="text"
                   value={phoneInput}
                   onChange={e => setPhoneInput(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-[#714B67] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
 
@@ -365,14 +381,14 @@ export const ProfileView: React.FC = () => {
                   type="text"
                   value={addressInput}
                   onChange={e => setAddressInput(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-[#714B67] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
 
               {canEditAll && (
                 <>
                   <div className="border-t border-slate-100 pt-3 dark:border-slate-800">
-                    <p className="text-[10px] font-bold text-indigo-600 uppercase">
+                    <p className="text-[10px] font-bold text-[#714B67] uppercase">
                       Admin Privileged Fields
                     </p>
                   </div>
@@ -385,7 +401,7 @@ export const ProfileView: React.FC = () => {
                       type="text"
                       value={positionInput}
                       onChange={e => setPositionInput(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-[#714B67] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                     />
                   </div>
 
@@ -397,19 +413,19 @@ export const ProfileView: React.FC = () => {
                       type="text"
                       value={departmentInput}
                       onChange={e => setDepartmentInput(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-[#714B67] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                     />
                   </div>
 
                   <div>
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Basic Pay ($)
+                      Basic Pay (₹)
                     </label>
                     <input
                       type="number"
                       value={basicSalaryInput}
                       onChange={e => setBasicSalaryInput(Number(e.target.value))}
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-[#714B67] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                     />
                   </div>
                 </>
@@ -418,7 +434,7 @@ export const ProfileView: React.FC = () => {
               <div className="mt-5 flex gap-2 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 rounded-xl bg-indigo-600 py-2 text-xs font-bold text-white hover:bg-indigo-500"
+                  className="flex-1 rounded-xl bg-[#714B67] hover:bg-[#5C3E54] py-2 text-xs font-bold text-white shadow-md"
                 >
                   Save Profile Changes
                 </button>

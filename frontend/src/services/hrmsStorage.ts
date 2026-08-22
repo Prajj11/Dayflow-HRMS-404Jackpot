@@ -20,41 +20,13 @@ const STORAGE_KEYS = {
 // Seed Data Initialization
 const INITIAL_EMPLOYEES: EmployeeProfile[] = [
   {
-    id: 'emp-1',
-    employeeId: 'DF-1001',
-    name: 'Sarah Jenkins',
-    email: 'sarah.jenkins@dayflow.com',
-    phone: '+1 (555) 234-5678',
-    address: '742 Evergreen Terrace, San Francisco, CA',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-    department: 'Human Resources',
-    position: 'HR Director / Admin',
-    joiningDate: '2022-03-15',
-    manager: 'CEO Office',
-    role: 'hr',
-    status: 'Active',
-    salary: {
-      basic: 75000,
-      hra: 30000,
-      specialAllowance: 15000,
-      pf: 9000,
-      tax: 11000,
-      netSalary: 100000
-    },
-    documents: [
-      { id: 'doc-1', title: 'Employment Contract.pdf', type: 'PDF', uploadDate: '2022-03-15', size: '2.4 MB' },
-      { id: 'doc-2', title: 'Identity Verification.pdf', type: 'PDF', uploadDate: '2022-03-15', size: '1.1 MB' }
-    ],
-    leaveBalance: { paid: 18, sick: 10, unpaid: 5 }
-  },
-  {
     id: 'emp-2',
     employeeId: 'DF-1002',
     name: 'Alex Rivera',
     email: 'alex.rivera@dayflow.com',
     phone: '+1 (555) 876-5432',
     address: '120 Market Street, Apt 4B, San Francisco, CA',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+    avatar: '',
     department: 'Engineering',
     position: 'Senior Frontend Developer',
     joiningDate: '2023-01-10',
@@ -76,71 +48,33 @@ const INITIAL_EMPLOYEES: EmployeeProfile[] = [
     leaveBalance: { paid: 14, sick: 7, unpaid: 3 }
   },
   {
-    id: 'emp-3',
-    employeeId: 'DF-1003',
-    name: 'Priya Sharma',
-    email: 'priya.sharma@dayflow.com',
-    phone: '+1 (555) 345-6789',
-    address: '450 Mission St, Suite 800, San Francisco, CA',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-    department: 'Product & Design',
-    position: 'Lead Product Designer',
-    joiningDate: '2023-06-01',
-    manager: 'Sarah Jenkins',
-    role: 'employee',
+    id: 'emp-1',
+    employeeId: 'DF-1001',
+    name: 'Sarah Jenkins',
+    email: 'sarah.jenkins@dayflow.com',
+    phone: '+1 (555) 234-5678',
+    address: '742 Evergreen Terrace, San Francisco, CA',
+    avatar: '',
+    department: 'Human Resources',
+    position: 'HR Director / Admin',
+    joiningDate: '2022-03-15',
+    manager: 'CEO Office',
+    role: 'hr',
     status: 'Active',
     salary: {
-      basic: 62000,
-      hra: 24800,
-      specialAllowance: 13200,
-      pf: 7440,
-      tax: 8560,
-      netSalary: 84000
-    },
-    documents: [
-      { id: 'doc-5', title: 'Design Portfolio.pdf', type: 'PDF', uploadDate: '2023-06-01', size: '5.2 MB' }
-    ],
-    leaveBalance: { paid: 12, sick: 8, unpaid: 2 }
-  },
-  {
-    id: 'emp-4',
-    employeeId: 'DF-1004',
-    name: 'Marcus Vance',
-    email: 'marcus.vance@dayflow.com',
-    phone: '+1 (555) 901-2345',
-    address: '89 Bush Street, San Francisco, CA',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
-    department: 'Quality Assurance',
-    position: 'QA Automation Lead',
-    joiningDate: '2023-09-15',
-    manager: 'Sarah Jenkins',
-    role: 'employee',
-    status: 'On Leave',
-    salary: {
-      basic: 55000,
-      hra: 22000,
-      specialAllowance: 11000,
-      pf: 6600,
-      tax: 7400,
-      netSalary: 74000
+      basic: 75000,
+      hra: 30000,
+      specialAllowance: 15000,
+      pf: 9000,
+      tax: 11000,
+      netSalary: 100000
     },
     documents: [],
-    leaveBalance: { paid: 10, sick: 5, unpaid: 1 }
+    leaveBalance: { paid: 18, sick: 10, unpaid: 5 }
   }
 ];
 
 const INITIAL_ATTENDANCE: AttendanceRecord[] = [
-  {
-    id: 'att-1',
-    employeeId: 'DF-1001',
-    employeeName: 'Sarah Jenkins',
-    date: new Date().toISOString().split('T')[0],
-    checkIn: '08:45 AM',
-    checkOut: null,
-    totalHours: 4.2,
-    status: 'Present',
-    notes: 'On-site HR Management'
-  },
   {
     id: 'att-2',
     employeeId: 'DF-1002',
@@ -151,28 +85,6 @@ const INITIAL_ATTENDANCE: AttendanceRecord[] = [
     totalHours: 3.9,
     status: 'Present',
     notes: 'Frontend sprint session'
-  },
-  {
-    id: 'att-3',
-    employeeId: 'DF-1003',
-    employeeName: 'Priya Sharma',
-    date: new Date().toISOString().split('T')[0],
-    checkIn: '09:15 AM',
-    checkOut: null,
-    totalHours: 3.6,
-    status: 'Present',
-    notes: 'UI audit reviews'
-  },
-  {
-    id: 'att-4',
-    employeeId: 'DF-1004',
-    employeeName: 'Marcus Vance',
-    date: new Date().toISOString().split('T')[0],
-    checkIn: null,
-    checkOut: null,
-    totalHours: 0,
-    status: 'Leave',
-    notes: 'Approved Annual Leave'
   }
 ];
 
@@ -188,49 +100,10 @@ const INITIAL_LEAVES: LeaveRequest[] = [
     reason: 'Family event and rest.',
     status: 'Pending',
     createdAt: '2026-08-20'
-  },
-  {
-    id: 'lv-2',
-    employeeId: 'DF-1003',
-    employeeName: 'Priya Sharma',
-    leaveType: 'Sick',
-    startDate: '2026-08-18',
-    endDate: '2026-08-19',
-    totalDays: 2,
-    reason: 'Flu & doctor consultation',
-    status: 'Approved',
-    hrComment: 'Approved. Get well soon!',
-    createdAt: '2026-08-18'
-  },
-  {
-    id: 'lv-3',
-    employeeId: 'DF-1004',
-    employeeName: 'Marcus Vance',
-    leaveType: 'Paid',
-    startDate: '2026-08-21',
-    endDate: '2026-08-22',
-    totalDays: 2,
-    reason: 'Personal time off.',
-    status: 'Approved',
-    hrComment: 'Approved by Sarah.',
-    createdAt: '2026-08-19'
   }
 ];
 
 const INITIAL_PAYROLL: PayrollRecord[] = [
-  {
-    id: 'pay-1',
-    employeeId: 'DF-1001',
-    employeeName: 'Sarah Jenkins',
-    month: 'August 2026',
-    basic: 75000,
-    hra: 30000,
-    allowances: 15000,
-    deductions: 20000,
-    netPay: 100000,
-    status: 'Paid',
-    paymentDate: '2026-08-01'
-  },
   {
     id: 'pay-2',
     employeeId: 'DF-1002',
@@ -241,19 +114,6 @@ const INITIAL_PAYROLL: PayrollRecord[] = [
     allowances: 14000,
     deductions: 17000,
     netPay: 88000,
-    status: 'Paid',
-    paymentDate: '2026-08-01'
-  },
-  {
-    id: 'pay-3',
-    employeeId: 'DF-1003',
-    employeeName: 'Priya Sharma',
-    month: 'August 2026',
-    basic: 62000,
-    hra: 24800,
-    allowances: 13200,
-    deductions: 16000,
-    netPay: 84000,
     status: 'Paid',
     paymentDate: '2026-08-01'
   }
@@ -280,14 +140,13 @@ export class HRMSStorage {
       localStorage.setItem(STORAGE_KEYS.PAYROLL, JSON.stringify(INITIAL_PAYROLL));
     }
     if (!localStorage.getItem(STORAGE_KEYS.CURRENT_USER)) {
-      // Default logged in as Sarah Jenkins (HR Director) or Alex Rivera
       const defaultUser: User = {
         id: INITIAL_EMPLOYEES[0].id,
         employeeId: INITIAL_EMPLOYEES[0].employeeId,
         name: INITIAL_EMPLOYEES[0].name,
         email: INITIAL_EMPLOYEES[0].email,
         role: INITIAL_EMPLOYEES[0].role,
-        avatar: INITIAL_EMPLOYEES[0].avatar,
+        avatar: '',
         department: INITIAL_EMPLOYEES[0].department,
         position: INITIAL_EMPLOYEES[0].position
       };
@@ -306,23 +165,32 @@ export class HRMSStorage {
   public static setCurrentUser(user: User) {
     if (!this.isBrowser()) return;
     localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
-  }
 
-  public static switchRole(role: 'employee' | 'hr') {
+    // Synchronize into employees profile list
     const employees = this.getEmployees();
-    const target = employees.find(e => e.role === role) || employees[0];
-    const user: User = {
-      id: target.id,
-      employeeId: target.employeeId,
-      name: target.name,
-      email: target.email,
-      role: role,
-      avatar: target.avatar,
-      department: target.department,
-      position: target.position
-    };
-    this.setCurrentUser(user);
-    return user;
+    let emp = employees.find(e => e.email === user.email || e.employeeId === user.employeeId);
+    if (!emp) {
+      const newEmp: EmployeeProfile = {
+        id: user.id || 'emp-' + Date.now(),
+        employeeId: user.employeeId || 'DF-' + Math.floor(1000 + Math.random() * 9000),
+        name: user.name,
+        email: user.email,
+        phone: '+1 (555) 123-4567',
+        address: 'San Francisco, CA',
+        avatar: '',
+        department: user.department || 'Engineering',
+        position: user.position || 'Software Engineer',
+        joiningDate: new Date().toISOString().split('T')[0],
+        manager: 'Sarah Jenkins',
+        role: user.role || 'employee',
+        status: 'Active',
+        salary: { basic: 80000, hra: 32000, specialAllowance: 16000, pf: 9600, tax: 8400, netSalary: 110000 },
+        documents: [],
+        leaveBalance: { paid: 15, sick: 8, unpaid: 5 }
+      };
+      employees.unshift(newEmp);
+      localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
+    }
   }
 
   // Employees
@@ -344,6 +212,19 @@ export class HRMSStorage {
     
     employees[index] = { ...employees[index], ...updates };
     localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
+
+    // Also update current user if modifying self
+    const currentUser = this.getCurrentUser();
+    if (currentUser && (currentUser.id === id || currentUser.employeeId === id)) {
+      this.setCurrentUser({
+        ...currentUser,
+        name: employees[index].name,
+        email: employees[index].email,
+        department: employees[index].department,
+        position: employees[index].position
+      });
+    }
+
     return employees[index];
   }
 
@@ -400,7 +281,7 @@ export class HRMSStorage {
     const existing = records.find(r => r.employeeId === (emp?.employeeId || employeeId) && r.date === today);
     if (existing) {
       existing.checkOut = nowStr;
-      existing.totalHours = 8.0; // Simulated full day
+      existing.totalHours = 8.0;
       localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(records));
       return existing;
     }
@@ -437,7 +318,6 @@ export class HRMSStorage {
     req.status = status;
     if (hrComment) req.hrComment = hrComment;
 
-    // Deduct leave balance if approved
     if (status === 'Approved') {
       const emp = this.getEmployeeById(req.employeeId);
       if (emp) {

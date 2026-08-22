@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { apiFetch, setSession } from "../lib/api";
+import { HRMSStorage } from "../services/hrmsStorage";
+import { User } from "../types/hrms";
 
 export const Route = createFileRoute("/login")({
   component: Login,
@@ -8,7 +10,7 @@ export const Route = createFileRoute("/login")({
 
 function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("alex.rivera@dayflow.com");
+  const [emailOrName, setEmailOrName] = useState("alex.rivera@dayflow.com");
   const [password, setPassword] = useState("Password123!");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -17,19 +19,51 @@ function Login() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    // Derive display name from email or text input
+    let displayName = emailOrName.trim();
+    if (displayName.includes("@")) {
+      const usernamePart = displayName.split("@")[0];
+      displayName = usernamePart
+        .split(".")
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+    } else {
+      displayName = displayName
+        .split(" ")
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+    }
+
+    if (!displayName) displayName = "Employee 1";
+
+    const userEmail = emailOrName.includes("@") ? emailOrName : `${emailOrName.toLowerCase().replace(/\s+/g, ".")}@dayflow.com`;
+    const employeeId = "DF-" + Math.floor(1000 + Math.random() * 9000);
+
+    const userObj: User = {
+      id: "usr-" + Date.now(),
+      employeeId: employeeId,
+      name: displayName,
+      email: userEmail,
+      role: "employee",
+      department: "Engineering",
+      position: "Software Engineer",
+      avatar: ""
+    };
+
     try {
-      const res = await apiFetch<{ token: string; role: string }>("/auth/signin", {
+      const res = await apiFetch<{ token: string; role: string; user?: any }>("/auth/signin", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: userEmail, password }),
       });
       setSession(res?.token || "demo_jwt_token", res?.role || "employee");
-      window.location.href = "/";
     } catch (e) {
-      // Fallback for local demo mode
       setSession("demo_jwt_token", "employee");
-      window.location.href = "/";
     } finally {
+      // Save logged-in employee profile into local storage
+      HRMSStorage.setCurrentUser(userObj);
       setLoading(false);
+      window.location.href = "/";
     }
   }
 
@@ -46,13 +80,14 @@ function Login() {
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
             <label className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-              Email
+              Name or Email
             </label>
             <input
-              type="email"
+              type="text"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder="e.g. Employee 1 or alex.rivera@dayflow.com"
+              value={emailOrName}
+              onChange={(e) => setEmailOrName(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#714B67]/40 dark:border-slate-800 dark:bg-slate-800 dark:text-white"
             />
           </div>

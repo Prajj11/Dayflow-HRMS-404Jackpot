@@ -39,16 +39,23 @@ export const HRMSProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshData = () => {
     const user = HRMSStorage.getCurrentUser();
-    setCurrentUser(user || {
-      id: 'usr-1002',
-      employeeId: 'DF-1002',
-      name: 'Alex Rivera',
-      email: 'alex.rivera@dayflow.com',
-      role: 'employee',
-      department: 'Engineering',
-      position: 'Senior Frontend Engineer',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
-    });
+    if (user) {
+      setCurrentUser(user);
+      setSelectedEmployeeId(user.employeeId);
+    } else {
+      const defaultUser: User = {
+        id: 'usr-1002',
+        employeeId: 'DF-1002',
+        name: 'Alex Rivera',
+        email: 'alex.rivera@dayflow.com',
+        role: 'employee',
+        department: 'Engineering',
+        position: 'Senior Frontend Engineer',
+        avatar: ''
+      };
+      setCurrentUser(defaultUser);
+      setSelectedEmployeeId(defaultUser.employeeId);
+    }
     setActiveRole('employee');
     setEmployees(HRMSStorage.getEmployees());
     setAttendance(HRMSStorage.getAttendanceRecords());
